@@ -99,7 +99,7 @@ class mitm_protect:
 	
 	def __arptable_firewall(self):
 		self.routerip		=	self.__getrouterip()
-		if popen('arptables 2>/dev/null').read() == '':
+		if popen('arptables --help 2>/dev/null').read() == '':
 			print('arptables not found!!! Could not create a firewall!!!')
 			critical('arptables not found!!! Could not create a firewall!!!')
 			return
