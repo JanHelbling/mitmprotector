@@ -31,6 +31,7 @@ from struct import pack
 from socket import inet_ntoa
 from uuid import getnode
 from signal import signal,SIGTERM
+from optparse import OptionParser
 import daemon,daemon.pidlockfile
 
 
@@ -191,7 +192,8 @@ class mitm_protect:
 				for line in fh:
 					fields = line.strip().split()
 					if fields[1] != '00000000' or not int(fields[3], 16) & 2:
-						continue					return inet_ntoa(pack('<L', int(fields[2], 16)))
+						continue
+					return inet_ntoa(pack('<L', int(fields[2], 16)))
 		except IOError:
 			critical('Error: File /proc/net/route not found!')
 			print('Error: File /proc/net/route not found!')
@@ -202,23 +204,25 @@ if __name__ == '__main__':
 		print('Must be run as root (uid=0)!')
 		exit(1)
 	
+	parser	=	OptionParser()
+	parser.add_option('-d','--daemon',dest='daemon',action='store_true',default=False,help='Run mitmprotector as a daemon.')
+	parser.add_option('-f','--foreground',dest='nodaemon',action='store_true',default=True,help='Run mitmprotector in foreground.')
+	parser.add_option('-n','--nm-aoc',dest='nmaoc',action='store_true',default=False,help='Enable  Autostart/stop -scripts on /etc/network/if-post-down.d/ and /etc/network/if-up.d/')
+	parser.add_option('-r','--rm-aoc',dest='rmaoc',action='store_true',default=False,help='Disable the Autostart/stop scripts'
+)
+	
+	(options, args) = parser.parse_args()
+	
 	if not path.exists(config_path):
 		argv = ['mitmprotector.py','-F','-C']
 	
-	if '--foreground' not in argv and '-F' not in argv and '-D' not in argv and '--daemon' not in argv and '--nm-aoc' not in argv and '--rm-aoc' not in argv or '-h' in argv or '--help' in argv or '-?' in argv:
-		print('Usage: {} [<-F | --foreground> || <-D | --daemon> || --nm-aoc ]'.format(argv[0]))
-		print(' -F --foreground :  Run mitmprotector.py not as daemon => in the $SHELL')
-		print ' -D --daemon     :  Run mitmprotector.py as a daemon with pidfile /var/run/mitmprotector.pid (kill with SIGTERM!)'
-		print(' --nm-aoc        :  Enable Autostart/stop -scripts on /etc/network/if-post-down.d/ and /etc/network/if-up.d/')
-		print(' --rm-aoc        :  Disable the Autostart/stop -scripts')
-		exit(0)
 	if popen('arp-scan 2>/dev/null').read() == '':
 		print('You must install arp-scan to use this tool!')
 		print('Ubuntu:    sudo apt-get install arp-scan')
 		print('ArchLinux: sudo pacman -S arp-scan')
 		print('Fedora:    sudo yum install arp-scan')
 		exit(1)
-	if '--nm-aoc' in argv:
+	if options.nmaoc:
 		mitmprotector_down		=	open('/etc/network/if-post-down.d/mitmprotector','w')
 		mitmprotector_up		=	open('/etc/network/if-up.d/mitmprotector','w')
 		mitmprotector_down.write('#!/bin/bash\npkill -TERM -F /var/run/mitmprotector.pid')
@@ -230,7 +234,7 @@ if __name__ == '__main__':
 		popen('/etc/init.d/networking reload').read()
 		print('Done! Scripts added. to remove the scripts: mitmprotector.py --rm-aoc')
 		exit(0)
-	elif '--rm-aoc' in argv:
+	elif options.rmaoc:
 		unlink('/etc/network/if-post-down.d/mitmprotector')
 		unlink('/etc/network/if-up.d/mitmprotector')
 		print('Done! Scripts removed!')
@@ -241,10 +245,10 @@ if __name__ == '__main__':
 		exit(1)
 	except IOError:
 		pass
-	if '--foreground' in argv or '-F' in argv:
+	if options.nodaemon:
 		x = mitm_protect()
 		exit(0)
-	elif '--daemon' in argv or '-D' in argv:
+	elif options.daemon:
 		with daemon.DaemonContext():
 			daemon.pidlockfile.write_pid_to_pidfile(pid_file)
 			x = mitm_protect()
