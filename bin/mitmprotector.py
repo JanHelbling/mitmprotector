@@ -245,7 +245,7 @@ if __name__ == '__main__':
 		exit(1)
 	except IOError:
 		pass
-	if options.nodaemon:
+	if options.nodaemon and not options.daemon:
 		x = mitm_protect()
 		exit(0)
 	elif options.daemon:
