@@ -191,9 +191,8 @@ class mitm_protect:
 				for line in fh:
 					fields = line.strip().split()
 					if fields[1] != '00000000' or not int(fields[3], 16) & 2:
-						continue
-					return inet_ntoa(pack('<L', int(fields[2], 16)))
-		except FileNotFoundError:
+						continue					return inet_ntoa(pack('<L', int(fields[2], 16)))
+		except IOError:
 			critical('Error: File /proc/net/route not found!')
 			print('Error: File /proc/net/route not found!')
 			exit(1)
@@ -205,8 +204,6 @@ if __name__ == '__main__':
 	
 	if not path.exists(config_path):
 		argv = ['mitmprotector.py','-F','-C']
-	
-	argc = len(argv)
 	
 	if '--foreground' not in argv and '-F' not in argv and '-D' not in argv and '--daemon' not in argv and '--nm-aoc' not in argv and '--rm-aoc' not in argv or '-h' in argv or '--help' in argv or '-?' in argv:
 		print('Usage: {} [<-F | --foreground> || <-D | --daemon> || --nm-aoc ]'.format(argv[0]))
@@ -233,11 +230,17 @@ if __name__ == '__main__':
 		popen('/etc/init.d/networking reload').read()
 		print('Done! Scripts added. to remove the scripts: mitmprotector.py --rm-aoc')
 		exit(0)
-	if '--rm-aoc' in argv:
+	elif '--rm-aoc' in argv:
 		unlink('/etc/network/if-post-down.d/mitmprotector')
 		unlink('/etc/network/if-up.d/mitmprotector')
 		print('Done! Scripts removed!')
 		exit(0)
+	try:
+		pid	=	open(pid_file,'r').read().rstrip('\n')
+		print('mitmprotector is already running! {}: {}'.format(pid_file,pid))
+		exit(1)
+	except IOError:
+		pass
 	if '--foreground' in argv or '-F' in argv:
 		x = mitm_protect()
 		exit(0)
