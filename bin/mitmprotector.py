@@ -43,7 +43,7 @@ log_path	= '/var/log/mitmprotector.log'
 pid_file	= '/var/run/mitmprotector.pid'
 
 prog_name	= 'mitmprotector.py'
-version		= '11'
+version		= '13'
 
 FIRSTRUN	= False
 
