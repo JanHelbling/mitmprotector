@@ -18,7 +18,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from os import popen,getuid,path,fork,mkdir,execvp,waitpid,WEXITSTATUS,unlink,chmod
+from os import popen,getuid,path,fork,mkdir,execvp,waitpid,WEXITSTATUS,unlink,chmod,getpid
 
 from sys import exit,argv,stdout
 
@@ -39,10 +39,13 @@ ip_regex 	= compile('\d+\.\d+\.\d+\.\d+')
 mac_regex	= compile('[A-Za-z0-9]+:[A-Za-z0-9]+:[A-Za-z0-9]+:[A-Za-z0-9]+:[A-Za-z0-9]+:[A-Za-z0-9]+')
 
 config_path	= '/etc/mitmprotector.cfg'
-
 log_path	= '/var/log/mitmprotector.log'
-
 pid_file	= '/var/run/mitmprotector.pid'
+
+prog_name	= 'mitmprotector.py'
+version		= '11'
+
+FIRSTRUN	= False
 
 class mitm_protect:
 	def __init__(self):
@@ -54,9 +57,6 @@ class mitm_protect:
 		try:
 			self.__run()
 		except KeyboardInterrupt:
-			info('delete Firewall')
-			print('exit mitmprotector')
-			print('delete arptables-firewall')
 			self.__remove_firewall()
 		info('mitmprotector ended!')
 		return
@@ -85,9 +85,9 @@ class mitm_protect:
 			with open(config_path,'w') as configfile:
 				config.write(configfile)
 			configfile.close()
-			if argv[2] == '-C':
+			if FIRSTRUN:
 				print('First execution: Created {}!'.format(config_path))
-				print('You need to edit it before you run {}!'.format(argv[0]))
+				print('You need to edit it before you run {}!'.format(prog_name))
 				exit(0)
 		info('Reading configfile {}'.format(config_path))
 		config.read(config_path)
@@ -194,17 +194,17 @@ class mitm_protect:
 					if fields[1] != '00000000' or not int(fields[3], 16) & 2:
 						continue
 					return inet_ntoa(pack('<L', int(fields[2], 16)))
-		except IOError:
-			critical('Error: File /proc/net/route not found!')
-			print('Error: File /proc/net/route not found!')
+		except IOError, e:
+			critical('Error: Couldn\'t open /proc/net/route: {}.'.format(e.strerror))
+			print('Error: Couldn\'t open /proc/net/route: {}.'.format(e.strerror))
 			exit(1)
 	
 if __name__ == '__main__':
 	if getuid() != 0:
-		print('Must be run as root (uid=0)!')
+		print('{} must be run as root (uid == 0)!'.format(prog_name))
 		exit(1)
 	
-	parser	=	OptionParser()
+	parser	=	OptionParser(version='%prog version {}\nCopyright (C) 2014 by Jan Helbling <jan.helbling@gmail.com>\nLicense: GPL3+\nlp:~jan-helbling/+junk/mitmprotector\nhttps://github.com/JanHelbling/mitmprotector.git'.format(version))
 	parser.add_option('-d','--daemon',dest='daemon',action='store_true',default=False,help='Run mitmprotector as a daemon.')
 	parser.add_option('-f','--foreground',dest='nodaemon',action='store_true',default=True,help='Run mitmprotector in foreground.')
 	parser.add_option('-n','--nm-aoc',dest='nmaoc',action='store_true',default=False,help='Enable  Autostart/stop -scripts on /etc/network/if-post-down.d/ and /etc/network/if-up.d/')
@@ -214,9 +214,9 @@ if __name__ == '__main__':
 	(options, args) = parser.parse_args()
 	
 	if not path.exists(config_path):
-		argv = ['mitmprotector.py','-F','-C']
+		FIRSTRUN	=	True
 	
-	if popen('arp-scan 2>/dev/null').read() == '':
+	if popen('arp-scan --help 2>&1 | grep 0x0800').read() == '':
 		print('You must install arp-scan to use this tool!')
 		print('Ubuntu:    sudo apt-get install arp-scan')
 		print('ArchLinux: sudo pacman -S arp-scan')
@@ -226,29 +226,47 @@ if __name__ == '__main__':
 		mitmprotector_down		=	open('/etc/network/if-post-down.d/mitmprotector','w')
 		mitmprotector_up		=	open('/etc/network/if-up.d/mitmprotector','w')
 		mitmprotector_down.write('#!/bin/bash\npkill -TERM -f /var/run/mitmprotector.pid')
-		mitmprotector_up.write('#!/bin/bash\nmitmprotector.py -d')
+		mitmprotector_up.write('#!/bin/bash\n{} -d'.format(prog_name))
 		mitmprotector_down.close()
 		mitmprotector_up.close()
+		print('Created /etc/network/if-post-down.d/mitmprotector and /etc/network/if-up.d/mitmprotector => 755')
 		chmod('/etc/network/if-post-down.d/mitmprotector',0755)
 		chmod('/etc/network/if-up.d/mitmprotector',0755)
+		print('execute /etc/init.d/networking reload...')
 		popen('/etc/init.d/networking reload').read()
 		print('Done! Scripts added. to remove the scripts: mitmprotector.py --rm-aoc')
 		exit(0)
 	elif options.rmaoc:
-		unlink('/etc/network/if-post-down.d/mitmprotector')
-		unlink('/etc/network/if-up.d/mitmprotector')
+		try:
+			unlink('/etc/network/if-post-down.d/mitmprotector')
+			unlink('/etc/network/if-up.d/mitmprotector')
+		except OSError, e:
+			print('Error: Couldn\'t remove {}: {}.'.format(e.filename,e.strerror))
+			exit(1)
 		print('Done! Scripts removed!')
 		exit(0)
 	try:
-		pid	=	open(pid_file,'r').read().rstrip('\n')
-		print('mitmprotector is already running! {}: {}'.format(pid_file,pid))
-		exit(1)
-	except IOError:
-		pass
+		pid_of_pidfile	=	open(pid_file,'r').read().rstrip('\n')
+		pid_of_pgrep	=	popen('pgrep -x mitmprotector.p').read().replace(str(getpid()),'').rstrip('\n')
+		if pid_of_pidfile != '' and pid_of_pidfile not in pid_of_pgrep:
+			try:
+				unlink(pid_file)
+			except OSError, e:
+				print('Error: Couldn\'t remove {}: {}.'.format(e.filename,e.strerror))
+				exit(1)
+		else:
+			print('mitmprotector is already running! {}: {}'.format(pid_file,pid_of_pidfile))
+			exit(1)
+	except IOError, e:
+		pid_of_pgrep	=	popen('pgrep -x mitmprotector.p').read().replace(str(getpid()),'').rstrip('\n')
+		if pid_of_pgrep != '':
+			print('mitmprotector is already running! Pid: {}'.format(pid_of_pgrep))
+			exit(1)
 	if options.nodaemon and not options.daemon:
 		x = mitm_protect()
-		exit(0)
 	elif options.daemon:
+		print('Starting daemon...')
 		with daemon.DaemonContext():
 			daemon.pidlockfile.write_pid_to_pidfile(pid_file)
 			x = mitm_protect()
+
