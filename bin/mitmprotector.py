@@ -39,7 +39,7 @@ log_path	= '/var/log/mitmprotector.log'
 pid_file	= '/var/run/mitmprotector.pid'
 
 prog_name	= 'mitmprotector.py'
-version		= '21'
+version		= '23'
 
 class mitm_protect:
 	def __init__(self):
@@ -52,6 +52,7 @@ class mitm_protect:
 		try:
 			self.__run()
 		except KeyboardInterrupt:
+			daemon.pidlockfile.remove_existing_pidfile(pid_file)
 			self.__remove_firewall()
 		info('=> mitmprotector ended!')
 		print('=> mitmprotector ended!')
@@ -72,8 +73,8 @@ class mitm_protect:
 			print('Creating new configfile: {}.'.format(config_path))
 			config.add_section('attack')
 			config.set('attack','exec','/usr/bin/notify-send "MITM-Attack" "from IP: {0}  MAC: {1}" -u critical -t 3000 -c "Security"')
-			config.set('attack','interfaces','wlan0')
-			config.set('attack','put-interfaces-down','1')
+			config.set('attack','interface','wlan0')
+			config.set('attack','put-interface-down','1')
 			config.set('attack','shutdown-interface-command','ifconfig {0} down')
 			config.add_section('arp-scanner')
 			config.set('arp-scanner','timeout','5')
@@ -95,8 +96,8 @@ class mitm_protect:
 			exit(1)
 		try:
 			self.exec_cmd		=	config.get('attack','exec')
-			self.interfaces		=	config.get('attack','interfaces')
-			self.putinterfacesdown	=	bool(	config.get('attack','put-interfaces-down'))
+			self.interface		=	config.get('attack','interface')
+			self.putinterfacedown	=	bool(	config.get('attack','put-interface-down'))
 			self.shutdown_iface_cmd	=		config.get('attack','shutdown-interface-command')
 			self.scan_timeout	=	float(	config.get('arp-scanner','timeout'))
 			self.arp_command	=		config.get('arp-scanner','command')
@@ -107,19 +108,17 @@ class mitm_protect:
 			print('Shutting down mitmprotector.')
 			daemon.pidlockfile.remove_existing_pidfile(pid_file)
 			exit(1)
+		except ConfigParser.NoOptionError, e:
+			critical('Could not read config {}: {}.'.format(config_path,e.message))
+			critical('Shutting down mitmprotector.')
+			print('Could not read config {}: {}.'.format(config_path,e.message))
+			print('Shutting down mitmprotector.')
+                        daemon.pidlockfile.remove_existing_pidfile(pid_file)
+			exit(1)
 		except ValueError, e:
 			critical('Could not read floatvalue [arp-scanner]->timeout: {}'.format(e.message))
 			critical('Shutting down mitmprotector.')
 			print('Could not read floatvalue [arp-scanner]->timeout: {}'.format(e.message))
-			print('Shutting down mitmprotector.')
-			daemon.pidlockfile.remove_existing_pidfile(pid_file)
-			exit(1)
-		try:
-			self.iface              =       self.interfaces.split(',')[0]
-		except IndexError:
-			critical('Could not get the interface from {}!'.format(config_path))
-			critical('Shutting down mitmprotector.')
-			print('Could not get the interface from {}!'.format(config_path))
 			print('Shutting down mitmprotector.')
 			daemon.pidlockfile.remove_existing_pidfile(pid_file)
 			exit(1)
@@ -132,14 +131,14 @@ class mitm_protect:
 			return
 		info('Creating a firewall with arptables and arp!')
 		print('creating a firewall with arptables and arp!')
-		print('Interface: {0}\nRouter-IP: {1}'.format(self.iface,self.routerip))
-		self.data			=	popen('arp-scan -I {0} {1} | grep {1}'.format(self.iface,self.routerip),'r').read()
+		print('Interface: {0}\nRouter-IP: {1}'.format(self.interface,self.routerip))
+		self.data			=	popen('arp-scan -I {0} {1} | grep {1}'.format(self.interface,self.routerip),'r').read()
 		try:
 			self.mac		=	mac_regex.findall(self.data)[0]
 			print('Router-MAC: {}'.format(self.mac))
 		except IndexError:
 			sleep(2)
-			self.data		=	popen('arp-scan -I {0} {1} | grep {1}'.format(self.iface,self.routerip),'r').read()
+			self.data		=	popen('arp-scan -I {0} {1} | grep {1}'.format(self.interface,self.routerip),'r').read()
 			try:
 				self.mac		=	mac_regex.findall(self.data)[0]
 			except IndexError:
@@ -172,20 +171,20 @@ class mitm_protect:
 				self.pid = fork()
 				if not self.pid:
 					popen(self.exec_cmd.format(self.attacker[0],self.attacker[1]),'r')
-					if self.putinterfacesdown:
-						print('Shut down the networkinterfaces: {}'.format(self.interfaces))
-						critical('Shut down the networkinterfaces: {}'.format(self.interfaces))
-						for interface in self.interfaces.split(','):
-							popen(self.shutdown_iface_cmd.format(interface),'r')
-							print('{}: turned off!'.format(interface))
-							critical('{}: turned off!'.format(interface))
+					if self.putinterfacedown:
+						print('Shut down the networkinterface {}!'.format(self.interface))
+						critical('Shut down the networkinterface {}!'.format(self.interface))
+						popen(self.shutdown_iface_cmd.format(self.interface),'r')
+						print('{}: turned off!'.format(self.interface))
+						critical('{}: turned off!'.format(self.interface))
 					exit(0)
 				wait()
-				info('Disconnected from Network!')
-				print('Disconnected from Network!')
-				self.__remove_firewall()
-				daemon.pidlockfile.remove_existing_pidfile(pid_file)
-				exit(0)
+				if self.putinterfacedown:
+					info('Disconnected from Network!')
+					print('Disconnected from Network!')
+					self.__remove_firewall()
+					daemon.pidlockfile.remove_existing_pidfile(pid_file)
+					exit(0)
 			print('[{0}] Sleeping {1} seconds until the next check.'.format(self.counter,self.scan_timeout))
 			sleep(self.scan_timeout)
 	
@@ -230,29 +229,38 @@ class mitm_protect:
 							continue
 						return inet_ntoa(pack('<L', int(fields[2], 16)))
 			except OSError, e:
-				critical('Error: Couldn\'t open /proc/net/route: {}.'.format(e.strerror))
-				info('Trying alternate methods to get the RouterIP.')
-				print('Error: Couldn\'t open /proc/net/route: {}.'.format(e.strerror))
-				print('Trying alternate methods to get the RouterIP.')
+				critical('Error: Couldn\'t open "/proc/net/route": {}.'.format(e.strerror))
+				info('Trying 4 alternate methods to get the RouterIP.')
+				print('Error: Couldn\'t open "/proc/net/route": {}.'.format(e.strerror))
+				print('Trying 4 alternate methods to get the RouterIP.')
 		else:
-			info('File "/proc/net/route" doesn\'t exists! Trying alternate methods to get the RouterIP.')
-			print('File "/proc/net/route" doesn\'t exists! Trying alternate methods to get the RouterIP.')
+			info('File "/proc/net/route" doesn\'t exists! Trying 4 alternate methods to get the RouterIP.')
+			print('File "/proc/net/route" doesn\'t exists! Trying 4 alternate methods to get the RouterIP.')
 		try:
 			info('=> Method 2: route -n')
 			print('=> Method 2: route -n')
 			return findall('\d+\.\d+\.\d+\.\d+',popen('route -n').read().split("\n")[2])[1]
 		except IndexError:
 			try:
-				info('=> Method 3: ifconfig {} | grep inet'.format(self.iface))
-				print('=> Method 3: ifconfig {} | grep inet'.format(self.iface))
-				return findall('\d+\.\d+\.\d+\.\d+',popen('ifconfig {} | grep inet\ '.format(self.iface)).read())[0].rstrip('1234567890') + '1'
+				info('=> Method 3: ifconfig {} | grep inet'.format(self.interface))
+				print('=> Method 3: ifconfig {} | grep inet'.format(self.interface))
+				return findall('\d+\.\d+\.\d+\.\d+',popen('ifconfig {} | grep inet\ '.format(self.interface)).read())[0].rstrip('1234567890') + '1'
 			except IndexError:
-				critical('Failed to get RouterIP!')
-				critical('Shutting down mitmprotector.')
-				print('Failed to get RouterIP!')
-				print('Shutting down mitmprotector.')
-				daemon.pidlockfile.remove_existing_pidfile(pid_file)
-				exit(1)
+				info('=> Method 4: Guessing (ping -c 1 -W 1 -I {} 192.168.0.1/192.168.1.1/192.168.8.1)'.format(self.interface))
+				print('=> Method 4: Guessing (ping -c 1 -W 1 -I {} 192.168.0.1/192.168.1.1/192.168.2.1)'.format(self.interface))
+				if popen('ping -W 1 -I {} 192.168.0.1 -c 1 | grep -E "1 received"'.format(self.interface)).read() != '':
+					return '192.168.0.1'
+				elif popen('ping -W 1 -I {} 192.168.1.1 -c 1 | grep -E "1 received"'.format(self.interface)).read() != '':
+					return '192.168.1.1'
+				elif popen('ping -W 1 -I {} 192.168.2.1 -c 1 | grep -E "1 received"'.format(self.interface)).read() != '':
+					return '192.168.2.1'
+				else:
+					critical('Failed to get RouterIP!')
+					critical('Shutting down mitmprotector.')
+					print('Failed to get RouterIP!')
+					print('Shutting down mitmprotector.')
+					daemon.pidlockfile.remove_existing_pidfile(pid_file)
+					exit(1)
 
 if __name__ == '__main__':
 	if getuid() != 0:

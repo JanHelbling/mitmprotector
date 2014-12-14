@@ -20,7 +20,7 @@ mitmprotector - protect's you from any kind of MITM-attacks, arpspoofing,
 ettercap, sslstrip, droidsheep, zAnti, dsploit, etc.
 
  - It use the arp command to compare MAC and IP -Addresses
- - Execute Command (notify-send?) and Drop all InetInterfaces down by Attack
+ - Execute Command (notify-send?) and Drop the Interface down by Attack
  - Create a Firewall if arptables is installed
  - Run as a Daemon or in Foreground
  - Enable startup on each connect/disconnect from network
