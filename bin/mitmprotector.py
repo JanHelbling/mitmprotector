@@ -38,19 +38,18 @@ import daemon,daemon.pidlockfile
 ip_regex 	= compile('\d+\.\d+\.\d+\.\d+')
 mac_regex	= compile('[A-Za-z0-9]+:[A-Za-z0-9]+:[A-Za-z0-9]+:[A-Za-z0-9]+:[A-Za-z0-9]+:[A-Za-z0-9]+')
 
-config_path	= '/etc/mitmprotector.cfg'
+config_path	= '/etc/mitmprotector.conf'
 log_path	= '/var/log/mitmprotector.log'
 pid_file	= '/var/run/mitmprotector.pid'
 
 prog_name	= 'mitmprotector.py'
-version		= '16'
-
-FIRSTRUN	= False
+version		= '17'
 
 class mitm_protect:
 	def __init__(self):
 		basicConfig(filename=log_path,filemode='a',level=DEBUG,format='%(asctime)s - %(levelname)s - %(message)s',datefmt='%d.%m.%Y - %H:%M:%S')
-		info('mitmprotector started!')
+		info('=> mitmprotector started!')
+		print('=> mitmprotector started!')
 		self.devices	=	[]
 		self.counter	=	0
 		signal(SIGTERM, self.__sigterm_handler)
@@ -58,8 +57,8 @@ class mitm_protect:
 			self.__run()
 		except KeyboardInterrupt:
 			self.__remove_firewall()
-		info('mitmprotector ended!')
-		return
+		info('=> mitmprotector ended!')
+		print('=> mitmprotector ended!')
 	
 	def __sigterm_handler(self,a,b):
 		self.__remove_firewall()
@@ -70,10 +69,11 @@ class mitm_protect:
 		return ':'.join(findall('..', '%012x' % getnode()))
 	
 	def __read_config(self):
-		print('loading configuration oddments =)')
+		print('Loading configuration oddments =)')
 		config		=	ConfigParser.RawConfigParser()
 		if not path.exists(config_path):
-			info('Creating new configfile {}'.format(config_path))
+			info('Creating new configfile: {}.'.format(config_path))
+			print('Creating new configfile: {}.'.format(config_path))
 			config.add_section('attack')
 			config.set('attack','exec','/usr/bin/notify-send "MITM-Attack" "from IP: {0}  MAC: {1}" -u critical -t 3000 -c "Security"')
 			config.set('attack','interfaces','wlan0')
@@ -85,11 +85,11 @@ class mitm_protect:
 			with open(config_path,'w') as configfile:
 				config.write(configfile)
 			configfile.close()
-			if FIRSTRUN:
-				print('First execution: Created {}!'.format(config_path))
-				print('You need to edit it before you run {}!'.format(prog_name))
-				exit(0)
-		info('Reading configfile {}'.format(config_path))
+			print('==> First execution <==')
+			print('Created configurationfile {}!'.format(config_path))
+			print('You need to edit it before run {}!'.format(prog_name))
+			exit(0)
+		info('Reading configfile {}.'.format(config_path))
 		if config.read(config_path) != [config_path]:
 			critical('Could not read config {}!'.format(config_path))
 			critical('Shutting down mitmprotector.')
@@ -112,7 +112,15 @@ class mitm_protect:
 		except ValueError, e:
 			critical('Could not read floatvalue [arp-scanner]->timeout: {}'.format(e.message))
 			critical('Shutting down mitmprotector.')
-			print('Could not read [arp-scanner]->timeout: {}'.format(e.message))
+			print('Could not read floatvalue [arp-scanner]->timeout: {}'.format(e.message))
+			print('Shutting down mitmprotector.')
+			exit(1)
+		try:
+			self.iface              =       self.interfaces.split(',')[0]
+		except IndexError:
+			critical('Could not get the interface from {}!'.format(config_path))
+			critical('Shutting down mitmprotector.')
+			print('Could not get the interface from {}!'.format(config_path))
 			print('Shutting down mitmprotector.')
 			exit(1)
 	
@@ -120,29 +128,20 @@ class mitm_protect:
 		self.routerip		=	self.__getrouterip()
 		if popen('arptables --help 2>/dev/null').read() == '':
 			print('arptables not found!!! Could not create a firewall!!!')
-			critical('arptables not found!!! Could not create a firewall!!!')
+			critical('Command "arptables" not found!!! Could not create a firewall!!!')
 			return
-		info('creating a firewall with arptables and arp!')
+		info('Creating a firewall with arptables and arp!')
 		print('creating a firewall with arptables and arp!')
-		try:
-			self.iface		=	self.interfaces.split(',')[0]
-		except IndexError:
-			critical('Could not get the interface from {}!'.format(config_path))
-			critical('Shutting down mitmprotector.')
-			print('Could not get the interface from {}!'.format(config_path))
-			print('Shutting down mitmprotector.')
-			exit(1)
 		print('Interface: {0}\nRouter-IP: {1}'.format(self.iface,self.routerip))
-		self.fd			=	popen('arp-scan -I {0} {1} | grep {1}'.format(self.iface,self.routerip),'r')
+		self.data			=	popen('arp-scan -I {0} {1} | grep {1}'.format(self.iface,self.routerip),'r').read()
 		try:
-			self.mac		=	mac_regex.findall(self.fd.read())[0]
+			self.mac		=	mac_regex.findall(self.data)[0]
 			print('Router-MAC: {}'.format(self.mac))
 		except IndexError:
-			sleep(1)
-			self.fd.close()
-			self.fd			=	popen('arp-scan -I {0} {1} | grep {1}'.format(self.iface,self.routerip),'r')
+			sleep(2)
+			self.data		=	popen('arp-scan -I {0} {1} | grep {1}'.format(self.iface,self.routerip),'r').read()
 			try:
-				self.mac		=	mac_regex.findall(self.fd.read())[0]
+				self.mac		=	mac_regex.findall(self.data)[0]
 			except IndexError:
 				critical('Could not find the MAC of {}'.format(self.routerip))
 				critical('Shutting down mitmprotector.')
@@ -150,23 +149,17 @@ class mitm_protect:
 				print('Shutting down mitmprotector.')
 				exit(1)
 			print('Router-MAC: {}'.format(self.mac))
-		self.fd.close()
-		self.fd			=	popen('arptables --zero && arptables -P INPUT DROP && arptables -P OUTPUT DROP && arptables -A INPUT -s {0} --source-mac {1} -j ACCEPT && arptables -A OUTPUT -d {0} --destination-mac {1} -j ACCEPT && arp -s {0} {1}'.format(self.routerip,self.mac), 'r')
-		self.fd.read()
-		self.fd.close()
-		self.fd			=	popen('arptables --list','r')
-		self.lst		=	self.fd.read()
-		self.fd.close()
-		print('arptables --list:\n{}'.format(self.lst))
+		popen('arptables --zero && arptables -P INPUT DROP && arptables -P OUTPUT DROP && arptables -A INPUT -s {0} --source-mac {1} -j ACCEPT && arptables -A OUTPUT -d {0} --destination-mac {1} -j ACCEPT && arp -s {0} {1}'.format(self.routerip,self.mac), 'r')
+		print('arptables --list:\n{}'.format(popen('arptables --list','r').read().rstrip('\n')))
 	
 	def __remove_firewall(self):
-		info('Shutting down mitmprotector. remove arptables firewall...')
-		popen('arptables --zero && arptables --flush').read()
+		info('Shutting down mitmprotector. Removing arptables firewall...')
+		popen('arptables --zero && arptables --flush')
 	
 	def __run(self):
 		self.__read_config()
 		self.__arptable_firewall()
-		info('starting endless loop')
+		info('Starting endless loop.')
 		while True:
 			self.counter = self.counter + 1
 			self.__arp()
@@ -176,23 +169,23 @@ class mitm_protect:
 				print('Exexute predefined command: \'{}\'!'.format(self.cmd.format(self.attacker[0],self.attacker[1])))
 				warning('ALARM! arppoisoning detected!!!')
 				if not fork():
-					popen(self.exec_cmd.format(self.attacker[0],self.attacker[1]),'r').read()
+					popen(self.exec_cmd.format(self.attacker[0],self.attacker[1]),'r')
 					if self.putinterfacesdown:
 						print('Shut down the networkinterfaces: {}'.format(self.interfaces))
 						critical('Shut down the networkinterfaces: {}'.format(self.interfaces))
 						for interface in self.interfaces.split(','):
-							popen(self.shutdown_iface_cmd.format(interface),'r').read()
+							popen(self.shutdown_iface_cmd.format(interface),'r')
 							print('{}: turned off!'.format(interface))
 							critical('{}: turned off!'.format(interface))
 					exit(0)
-			print('[{0}] sleeping {1} seconds until the next check.'.format(self.counter,self.scan_timeout))
+			print('[{0}] Sleeping {1} seconds until the next check.'.format(self.counter,self.scan_timeout))
 			sleep(self.scan_timeout)
 	
 	def __arp(self):
 		self.fd		=	popen(self.arp_command,'r')
 		self.lines	=	(self.fd.read()).split('\n')
 		self.fd.close()
-		print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>ARP-LIST START<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
+		print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>  ARP-LIST START  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
 		for line in self.lines:
 			if line == '':
 				break
@@ -202,8 +195,9 @@ class mitm_protect:
 				print('>>> IP: {0}  MAC: {1}'.format(ip,mac))
 				self.devices.append((ip,mac))
 			except IndexError:
-				pass
-		print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>ARP-LIST END<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n\n')
+				print('IndexError: Failed to regex a line from "arp -an" => IP & MAC')
+				print('The line: "{}".'.format(line.rstrip('\n')))
+		print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>  ARP-LIST END    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n\n')
 
 	def __check(self):
 		self.attacker	=	()
@@ -229,14 +223,24 @@ class mitm_protect:
 						return inet_ntoa(pack('<L', int(fields[2], 16)))
 			except OSError, e:
 				critical('Error: Couldn\'t open /proc/net/route: {}.'.format(e.strerror))
+				info('Trying alternate methods to get the RouterIP.')
 				print('Error: Couldn\'t open /proc/net/route: {}.'.format(e.strerror))
-				exit(1)
+				print('Trying alternate methods to get the RouterIP.')
 		else:
-			critical('File /proc/net/route doesn\'t exists! Failed to get RouterIP!')
-			critical('Shutting down mitmprotector.')
-			print('File /proc/net/route doesn\'t exists! Failed to get RouterIP!')
-			print('Shutting down mitmprotector.')
-			exit(1)
+			print('/proc/net/route doesn\'t exists,  trying alternate methods to get the RouterIP.')
+		try:
+			print('=> Method 2: route -n')
+			return findall('\d+\.\d+\.\d+\.\d+',popen('route -n').read().split("\n")[2])[1]
+		except IndexError:
+			try:
+				print('=> Method 3: ifconfig {} | grep inet'.format(self.iface))
+				return findall('\d+\.\d+\.\d+\.\d+',popen('ifconfig {} | grep inet\ '.format(self.iface)).read())[0].rstrip('1234567890') + '1'
+			except IndexError:
+				critical('Failed to get RouterIP!')
+				critical('Shutting down mitmprotector.')
+				print('Failed to get RouterIP!')
+				print('Shutting down mitmprotector.')
+				exit(1)
 
 if __name__ == '__main__':
 	if getuid() != 0:
@@ -252,7 +256,8 @@ if __name__ == '__main__':
 	(options, args) = parser.parse_args()
 	
 	if not path.exists(config_path):
-		FIRSTRUN	=	True
+		options.daemon		=	False
+		options.nodaemon	=	True
 	
 	if popen('arp-scan --help 2>&1 | grep 0x0800').read() == '':
 		print('You must install arp-scan to use this tool!')
@@ -260,20 +265,33 @@ if __name__ == '__main__':
 		print('ArchLinux: sudo pacman -S arp-scan')
 		print('Fedora:    sudo yum install arp-scan')
 		exit(1)
+	
 	if options.nmaoc:
-		mitmprotector_down		=	open('/etc/network/if-post-down.d/mitmprotector','w')
-		mitmprotector_up		=	open('/etc/network/if-up.d/mitmprotector','w')
-		mitmprotector_down.write('#!/bin/bash\npkill -TERM -f /var/run/mitmprotector.pid')
-		mitmprotector_up.write('#!/bin/bash\n{} -d'.format(prog_name))
-		mitmprotector_down.close()
-		mitmprotector_up.close()
-		chmod('/etc/network/if-post-down.d/mitmprotector',0755)
-		chmod('/etc/network/if-up.d/mitmprotector',0755)
-		print('Created /etc/network/if-post-down.d/mitmprotector and /etc/network/if-up.d/mitmprotector => 755')
-		print('execute /etc/init.d/networking reload...')
-		popen('/etc/init.d/networking reload').read()
-		print('Done! Scripts added. To remove the scripts: mitmprotector.py --rm-aoc')
-		exit(0)
+		if path.exists('/etc/network/if-post-down.d/') and path.exists('/etc/network/if-up.d/'):
+			try:
+				mitmprotector_down		=	open('/etc/network/if-post-down.d/mitmprotector','w')
+				mitmprotector_up		=	open('/etc/network/if-up.d/mitmprotector','w')
+				mitmprotector_down.write('#!/bin/bash\npkill -TERM -F /var/run/mitmprotector.pid')
+				mitmprotector_up.write('#!/bin/bash\n{} -d'.format(prog_name))
+				mitmprotector_down.close()
+				mitmprotector_up.close()
+			except OSError, e:
+				print('Failed to create {}: {}.'.format(e.filename,e.strerror))
+				exit(1)
+			try:
+				chmod('/etc/network/if-post-down.d/mitmprotector',0755)
+				chmod('/etc/network/if-up.d/mitmprotector',0755)
+			except OSError, e:
+				print('Failed to chmod {}: {}.'.format(e.filename,e.strerror))
+				exit(1)
+			print('Created /etc/network/if-post-down.d/mitmprotector and /etc/network/if-up.d/mitmprotector => 755')
+			print('execute /etc/init.d/networking reload...')
+			popen('/etc/init.d/networking reload 2>/dev/null')
+			print('Done! Scripts added. To remove the scripts: mitmprotector.py --rm-aoc')
+			exit(0)
+		else:
+			print('Error: Directorys /etc/network/if-up.d and /etc/if-post-down.d doesn\'t exists!')
+			exit(1)
 	elif options.rmaoc:
 		if not path.exists('/etc/network/if-post-down.d/mitmprotector') and not path.exists('/etc/network/if-up.d/mitmprotector'):
 			print('The scripts doesn\'t exists. Nothing to delete.')
@@ -286,6 +304,7 @@ if __name__ == '__main__':
 			exit(1)
 		print('Done! Scripts removed!')
 		exit(0)
+	
 	if path.exists(pid_file):
 		try:
 			pid_of_pidfile	=	open(pid_file,'r').read().rstrip('\n')
@@ -294,22 +313,25 @@ if __name__ == '__main__':
 			exit(1)
 	else:
 		pid_of_pidfile	=	''
+	
 	pid_of_pgrep	=	popen('pgrep -x mitmprotector.p').read().replace(str(getpid()),'').rstrip('\n')
+	
 	if pid_of_pidfile != '' and pid_of_pidfile not in pid_of_pgrep:
 		try:
 			unlink(pid_file)
 		except OSError, e:
 			print('Error: Couldn\'t remove {}: {}.'.format(e.filename,e.strerror))
 			exit(1)
+	
 	elif pid_of_pidfile != '' and pid_of_pidfile in pid_of_pgrep:
 		print('mitmprotector is already running! {}: {}.'.format(pid_file,pid_of_pidfile))
 		exit(1)
 	else:
 		if options.nodaemon and not options.daemon:
-			x = mitm_protect()
+			programm = mitm_protect()
 		elif options.daemon:
 			print('Starting daemon...')
 			with daemon.DaemonContext():
 				daemon.pidlockfile.write_pid_to_pidfile(pid_file)
-				x = mitm_protect()
+				programm = mitm_protect()
 
