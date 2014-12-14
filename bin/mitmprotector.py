@@ -43,7 +43,7 @@ log_path	= '/var/log/mitmprotector.log'
 pid_file	= '/var/run/mitmprotector.pid'
 
 prog_name	= 'mitmprotector.py'
-version		= '14'
+version		= '15'
 
 FIRSTRUN	= False
 
@@ -90,7 +90,7 @@ class mitm_protect:
 				print('You need to edit it before you run {}!'.format(prog_name))
 				exit(0)
 		info('Reading configfile {}'.format(config_path))
-		if config.read(config_path) != config_path:
+		if config.read(config_path) != [config_path]:
 			critical('Could not read config {}!'.format(config_path))
 			critical('Shutting down mitmprotector.')
 			print('Could not read config {}!'.format(config_path))
