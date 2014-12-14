@@ -19,21 +19,17 @@
 #
 
 from os import popen,getuid,path,fork,execvp,waitpid,unlink,chmod,getpid
-
 from sys import exit
-
 from time import sleep
-
 from logging import info,warning,critical,basicConfig,DEBUG
 from re import findall,compile
-import ConfigParser
 from struct import pack
 from socket import inet_ntoa
 from uuid import getnode
 from signal import signal,SIGTERM
 from optparse import OptionParser
 import daemon,daemon.pidlockfile
-
+import ConfigParser
 
 ip_regex 	= compile('\d+\.\d+\.\d+\.\d+')
 mac_regex	= compile('[A-Za-z0-9]+:[A-Za-z0-9]+:[A-Za-z0-9]+:[A-Za-z0-9]+:[A-Za-z0-9]+:[A-Za-z0-9]+')
@@ -43,7 +39,7 @@ log_path	= '/var/log/mitmprotector.log'
 pid_file	= '/var/run/mitmprotector.pid'
 
 prog_name	= 'mitmprotector.py'
-version		= '20'
+version		= '21'
 
 class mitm_protect:
 	def __init__(self):
@@ -95,6 +91,7 @@ class mitm_protect:
 			critical('Shutting down mitmprotector.')
 			print('Could not read config {}!'.format(config_path))
 			print('Shutting down mitmprotector.')
+			daemon.pidlockfile.remove_existing_pidfile(pid_file)
 			exit(1)
 		try:
 			self.exec_cmd		=	config.get('attack','exec')
@@ -108,12 +105,14 @@ class mitm_protect:
 			critical('Shutting down mitmprotector.')
 			print('Could not read config {}: {}.'.format(config_path,e))
 			print('Shutting down mitmprotector.')
+			daemon.pidlockfile.remove_existing_pidfile(pid_file)
 			exit(1)
 		except ValueError, e:
 			critical('Could not read floatvalue [arp-scanner]->timeout: {}'.format(e.message))
 			critical('Shutting down mitmprotector.')
 			print('Could not read floatvalue [arp-scanner]->timeout: {}'.format(e.message))
 			print('Shutting down mitmprotector.')
+			daemon.pidlockfile.remove_existing_pidfile(pid_file)
 			exit(1)
 		try:
 			self.iface              =       self.interfaces.split(',')[0]
@@ -122,6 +121,7 @@ class mitm_protect:
 			critical('Shutting down mitmprotector.')
 			print('Could not get the interface from {}!'.format(config_path))
 			print('Shutting down mitmprotector.')
+			daemon.pidlockfile.remove_existing_pidfile(pid_file)
 			exit(1)
 	
 	def __arptable_firewall(self):
@@ -147,6 +147,7 @@ class mitm_protect:
 				critical('Shutting down mitmprotector.')
 				print('Could not find the MAC of {}'.format(self.routerip))
 				print('Shutting down mitmprotector.')
+				daemon.pidlockfile.remove_existing_pidfile(pid_file)
 				exit(1)
 			print('Router-MAC: {}'.format(self.mac))
 		popen('arptables --zero && arptables -P INPUT DROP && arptables -P OUTPUT DROP && arptables -A INPUT -s {0} --source-mac {1} -j ACCEPT && arptables -A OUTPUT -d {0} --destination-mac {1} -j ACCEPT && arp -s {0} {1}'.format(self.routerip,self.mac), 'r')
@@ -183,6 +184,7 @@ class mitm_protect:
 				info('Disconnected from Network!')
 				print('Disconnected from Network!')
 				self.__remove_firewall()
+				daemon.pidlockfile.remove_existing_pidfile(pid_file)
 				exit(0)
 			print('[{0}] Sleeping {1} seconds until the next check.'.format(self.counter,self.scan_timeout))
 			sleep(self.scan_timeout)
@@ -249,6 +251,7 @@ class mitm_protect:
 				critical('Shutting down mitmprotector.')
 				print('Failed to get RouterIP!')
 				print('Shutting down mitmprotector.')
+				daemon.pidlockfile.remove_existing_pidfile(pid_file)
 				exit(1)
 
 if __name__ == '__main__':
