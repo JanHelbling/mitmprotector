@@ -43,7 +43,7 @@ log_path	= '/var/log/mitmprotector.log'
 pid_file	= '/var/run/mitmprotector.pid'
 
 prog_name	= 'mitmprotector.py'
-version		= '13'
+version		= '14'
 
 FIRSTRUN	= False
 
@@ -90,13 +90,31 @@ class mitm_protect:
 				print('You need to edit it before you run {}!'.format(prog_name))
 				exit(0)
 		info('Reading configfile {}'.format(config_path))
-		config.read(config_path)
-		self.exec_cmd		=	config.get('attack','exec')
-		self.interfaces		=	config.get('attack','interfaces')
-		self.putinterfacesdown	=	bool(	config.get('attack','put-interfaces-down'))
-		self.shutdown_iface_cmd	=		config.get('attack','shutdown-interface-command')
-		self.scan_timeout	=	float(	config.get('arp-scanner','timeout'))
-		self.arp_command	=		config.get('arp-scanner','command')
+		if config.read(config_path) != config_path:
+			critical('Could not read config {}!'.format(config_path))
+			critical('Shutting down mitmprotector.')
+			print('Could not read config {}!'.format(config_path))
+			print('Shutting down mitmprotector.')
+			exit(1)
+		try:
+			self.exec_cmd		=	config.get('attack','exec')
+			self.interfaces		=	config.get('attack','interfaces')
+			self.putinterfacesdown	=	bool(	config.get('attack','put-interfaces-down'))
+			self.shutdown_iface_cmd	=		config.get('attack','shutdown-interface-command')
+			self.scan_timeout	=	float(	config.get('arp-scanner','timeout'))
+			self.arp_command	=		config.get('arp-scanner','command')
+		except ConfigParser.NoSectionError, e:
+			critical('Could not read config {}: {}.'.format(config_path,e))
+			critical('Shutting down mitmprotector.')
+			print('Could not read config {}: {}.'.format(config_path,e))
+			print('Shutting down mitmprotector.')
+			exit(1)
+		except ValueError, e:
+			critical('Could not read floatvalue [arp-scanner]->timeout: {}'.format(e.message))
+			critical('Shutting down mitmprotector.')
+			print('Could not read [arp-scanner]->timeout: {}'.format(e.message))
+			print('Shutting down mitmprotector.')
+			exit(1)
 	
 	def __arptable_firewall(self):
 		self.routerip		=	self.__getrouterip()
@@ -106,7 +124,14 @@ class mitm_protect:
 			return
 		info('creating a firewall with arptables and arp!')
 		print('creating a firewall with arptables and arp!')
-		self.iface		=	self.interfaces.split(',')[0]
+		try:
+			self.iface		=	self.interfaces.split(',')[0]
+		except IndexError:
+			critical('Could not get the interface from {}!'.format(config_path))
+			critical('Shutting down mitmprotector.')
+			print('Could not get the interface from {}!'.format(config_path))
+			print('Shutting down mitmprotector.')
+			exit(1)
 		print('Interface: {0}\nRouter-IP: {1}'.format(self.iface,self.routerip))
 		self.fd			=	popen('arp-scan -I {0} {1} | grep {1}'.format(self.iface,self.routerip),'r')
 		try:
@@ -116,7 +141,14 @@ class mitm_protect:
 			sleep(1)
 			self.fd.close()
 			self.fd			=	popen('arp-scan -I {0} {1} | grep {1}'.format(self.iface,self.routerip),'r')
-			self.mac		=	mac_regex.findall(self.fd.read())[0]
+			try:
+				self.mac		=	mac_regex.findall(self.fd.read())[0]
+			except IndexError:
+				critical('Could not find the MAC of {}'.format(self.routerip))
+				critical('Shutting down mitmprotector.')
+				print('Could not find the MAC of {}'.format(self.routerip))
+				print('Shutting down mitmprotector.')
+				exit(1)
 			print('Router-MAC: {}'.format(self.mac))
 		self.fd.close()
 		self.fd			=	popen('arptables --zero && arptables -P INPUT DROP && arptables -P OUTPUT DROP && arptables -A INPUT -s {0} --source-mac {1} -j ACCEPT && arptables -A OUTPUT -d {0} --destination-mac {1} -j ACCEPT && arp -s {0} {1}'.format(self.routerip,self.mac), 'r')
@@ -194,7 +226,7 @@ class mitm_protect:
 					if fields[1] != '00000000' or not int(fields[3], 16) & 2:
 						continue
 					return inet_ntoa(pack('<L', int(fields[2], 16)))
-		except IOError, e:
+		except OSError, e:
 			critical('Error: Couldn\'t open /proc/net/route: {}.'.format(e.strerror))
 			print('Error: Couldn\'t open /proc/net/route: {}.'.format(e.strerror))
 			exit(1)
@@ -229,12 +261,12 @@ if __name__ == '__main__':
 		mitmprotector_up.write('#!/bin/bash\n{} -d'.format(prog_name))
 		mitmprotector_down.close()
 		mitmprotector_up.close()
-		print('Created /etc/network/if-post-down.d/mitmprotector and /etc/network/if-up.d/mitmprotector => 755')
 		chmod('/etc/network/if-post-down.d/mitmprotector',0755)
 		chmod('/etc/network/if-up.d/mitmprotector',0755)
+		print('Created /etc/network/if-post-down.d/mitmprotector and /etc/network/if-up.d/mitmprotector => 755')
 		print('execute /etc/init.d/networking reload...')
 		popen('/etc/init.d/networking reload').read()
-		print('Done! Scripts added. to remove the scripts: mitmprotector.py --rm-aoc')
+		print('Done! Scripts added. To remove the scripts: mitmprotector.py --rm-aoc')
 		exit(0)
 	elif options.rmaoc:
 		try:
