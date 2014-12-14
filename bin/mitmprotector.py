@@ -225,8 +225,8 @@ if __name__ == '__main__':
 	if options.nmaoc:
 		mitmprotector_down		=	open('/etc/network/if-post-down.d/mitmprotector','w')
 		mitmprotector_up		=	open('/etc/network/if-up.d/mitmprotector','w')
-		mitmprotector_down.write('#!/bin/bash\npkill -TERM -F /var/run/mitmprotector.pid')
-		mitmprotector_up.write('#!/bin/bash\nmitmprotector.py -D')
+		mitmprotector_down.write('#!/bin/bash\npkill -TERM -f /var/run/mitmprotector.pid')
+		mitmprotector_up.write('#!/bin/bash\nmitmprotector.py -d')
 		mitmprotector_down.close()
 		mitmprotector_up.close()
 		chmod('/etc/network/if-post-down.d/mitmprotector',0755)
