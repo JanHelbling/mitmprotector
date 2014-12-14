@@ -43,7 +43,7 @@ log_path	= '/var/log/mitmprotector.log'
 pid_file	= '/var/run/mitmprotector.pid'
 
 prog_name	= 'mitmprotector.py'
-version		= '19'
+version		= '20'
 
 class mitm_protect:
 	def __init__(self):
@@ -180,6 +180,7 @@ class mitm_protect:
 							critical('{}: turned off!'.format(interface))
 					exit(0)
 				wait()
+				info('Disconnected from Network!')
 				print('Disconnected from Network!')
 				self.__remove_firewall()
 				exit(0)
@@ -258,8 +259,9 @@ if __name__ == '__main__':
 	parser	=	OptionParser(version='%prog version {}\nCopyright (C) 2014 by Jan Helbling <jan.helbling@gmail.com>\nLicense: GPL3+\nlp:~jan-helbling/+junk/mitmprotector\nhttps://github.com/JanHelbling/mitmprotector.git'.format(version))
 	parser.add_option('-d','--daemon',dest='daemon',action='store_true',default=False,help='Run mitmprotector as a daemon.')
 	parser.add_option('-f','--foreground',dest='nodaemon',action='store_true',default=True,help='Run mitmprotector in foreground.')
-	parser.add_option('-n','--nm-aoc',dest='nmaoc',action='store_true',default=False,help='Enable  Autostart/stop -scripts for NetworkManager and WICD')
-	parser.add_option('-r','--rm-aoc',dest='rmaoc',action='store_true',default=False,help='Disable the Autostart/stop -scripts for NetworkManager and WICD')
+	parser.add_option('-k','--kill',dest='kill',action='store_true',default=False,help='Kill mitmprotector with a SIGTERM!')
+	parser.add_option('-n','--nm-aoc',dest='nmaoc',action='store_true',default=False,help='Enable  NetworkManager/WICD -autostartscripts')
+	parser.add_option('-r','--rm-aoc',dest='rmaoc',action='store_true',default=False,help='Disable NetworkManager/WICD -autostartscripts')
 	
 	(options, args) = parser.parse_args()
 	
@@ -273,58 +275,66 @@ if __name__ == '__main__':
 		print('ArchLinux: sudo pacman -S arp-scan')
 		print('Fedora:    sudo yum install arp-scan')
 		exit(1)
-	
+	if options.kill:
+		print('[EXEC] pkill -TERM mitmprotector.p')
+		popen('pkill -TERM mitmprotector.p 2>/dev/null')
 	if options.nmaoc:
 		if path.exists('/etc/network/if-post-down.d/') and path.exists('/etc/network/if-up.d/'):
-			print('[NetworkManager] Found! Installing scripts.')
-			try:
-				mitmprotector_down		=	open('/etc/network/if-post-down.d/mitmprotector','w')
-				mitmprotector_up		=	open('/etc/network/if-up.d/mitmprotector','w')
-				mitmprotector_down.write('#!/bin/bash\npkill -TERM -F /var/run/mitmprotector.pid')
-				mitmprotector_up.write('#!/bin/bash\n{} -d'.format(prog_name))
-				mitmprotector_down.close()
-				mitmprotector_up.close()
-			except OSError, e:
-				print('[NetworkManager] Failed to create {}: {}.'.format(e.filename,e.strerror))
-				exit(1)
-			try:
-				chmod('/etc/network/if-post-down.d/mitmprotector',0755)
-				chmod('/etc/network/if-up.d/mitmprotector',0755)
-			except OSError, e:
-				print('[NetworkManager] Failed to chmod->755 {}: {}.'.format(e.filename,e.strerror))
-				print('    You must manual chmod 755 these files:')
-				print('    /etc/network/if-post-down.d/mitmprotector')
-				print('    /etc/network/if-up.d/mitmprotector')
-				exit(1)
-			print('[NetworkManager] Created /etc/network/if-post-down.d/mitmprotector and /etc/network/if-up.d/mitmprotector => 755')
-			print('[NetworkManager] execute /etc/init.d/networking reload...')
-			popen('/etc/init.d/networking reload 2>/dev/null')
+			if path.exists('/etc/network/if-post-down.d/mitmprotector') and path.exists('/etc/network/if-up.d/mitmprotector'):
+				print('[NetworkManager] Scripts already installed!')
+			else:
+				print('[NetworkManager] Found! Installing scripts.')
+				try:
+					mitmprotector_down		=	open('/etc/network/if-post-down.d/mitmprotector','w')
+					mitmprotector_up		=	open('/etc/network/if-up.d/mitmprotector','w')
+					mitmprotector_down.write('#!/bin/bash\npkill -TERM -F /var/run/mitmprotector.pid')
+					mitmprotector_up.write('#!/bin/bash\n{} -d'.format(prog_name))
+					mitmprotector_down.close()
+					mitmprotector_up.close()
+				except OSError, e:
+					print('[NetworkManager] Failed to create {}: {}.'.format(e.filename,e.strerror))
+					exit(1)
+				try:
+					chmod('/etc/network/if-post-down.d/mitmprotector',0755)
+					chmod('/etc/network/if-up.d/mitmprotector',0755)
+				except OSError, e:
+					print('[NetworkManager] Failed to chmod->755 {}: {}.'.format(e.filename,e.strerror))
+					print('    You must manual chmod 755 these files:')
+					print('    /etc/network/if-post-down.d/mitmprotector')
+					print('    /etc/network/if-up.d/mitmprotector')
+					exit(1)
+				print('[NetworkManager] Created /etc/network/if-post-down.d/mitmprotector and /etc/network/if-up.d/mitmprotector => 755')
+				print('[NetworkManager] execute /etc/init.d/networking reload...')
+				popen('/etc/init.d/networking reload 2>/dev/null')
 		else:
 			print('[NetworkManager] Not found!')
 		if path.exists('/etc/wicd/scripts/postconnect/') and path.exists('/etc/wicd/scripts/predisconnect/'):
-			print('[WICD] Found! Installing scripts.')
-			try:
-				mitmprotector_down		=	open('/etc/wicd/scripts/predisconnect/mitmprotector','w')
-				mitmprotector_up		=	open('/etc/wicd/scripts/postconnect/mitmprotector','w')
-				mitmprotector_down.write('#!/bin/bash\npkill -TERM -F /var/run/mitmprotector.pid')
-				mitmprotector_up.write('#!/bin/bash\n{} -d'.format(prog_name))
-				mitmprotector_down.close()
-				mitmprotector_up.close()
-			except OSError, e:
-				print('[WICD] Failed to create {}: {}.'.format(e.filename,e.strerror))
-				exit(1)
-			try:
-				chmod('/etc/wicd/scripts/predisconnect/mitmprotector',0755)
-				chmod('/etc/wicd/scripts/postconnect/mitmprotector',0755)
-			except OSError, e:
-				print('[WICD] Failed to chmod->755 {}: {}.'.format(e.filename,e.strerror))
-				print('    You must manual chmod 755 these files:')
-				print('    /etc/wicd/scripts/predisconnect/mitmprotector')
-				print('    /etc/wicd/scripts/postconnect/mitmprotector')
-				exit(1)
-			print('[WICD] Created /etc/wicd/scripts/predisconnect/mitmprotector and /etc/wicd/scripts/postconnect/mitmprotector => 755')
-			print('[WICD] execute /etc/init.d/wicd force-reload...')
-			popen('/etc/init.d/wicd force-reload 2>/dev/null')
+			if path.exists('/etc/wicd/scripts/predisconnect/mitmprotector') and path.exists('/etc/wicd/scripts/postconnect/mitmprotector'):
+				print('[WICD] Scripts already installed!')
+			else:
+				print('[WICD] Found! Installing scripts.')
+				try:
+					mitmprotector_down		=	open('/etc/wicd/scripts/predisconnect/mitmprotector','w')
+					mitmprotector_up		=	open('/etc/wicd/scripts/postconnect/mitmprotector','w')
+					mitmprotector_down.write('#!/bin/bash\npkill -TERM -F /var/run/mitmprotector.pid')
+					mitmprotector_up.write('#!/bin/bash\n{} -d'.format(prog_name))
+					mitmprotector_down.close()
+					mitmprotector_up.close()
+				except OSError, e:
+					print('[WICD] Failed to create {}: {}.'.format(e.filename,e.strerror))
+					exit(1)
+				try:
+					chmod('/etc/wicd/scripts/predisconnect/mitmprotector',0755)
+					chmod('/etc/wicd/scripts/postconnect/mitmprotector',0755)
+				except OSError, e:
+					print('[WICD] Failed to chmod->755 {}: {}.'.format(e.filename,e.strerror))
+					print('    You must manual chmod 755 these files:')
+					print('    /etc/wicd/scripts/predisconnect/mitmprotector')
+					print('    /etc/wicd/scripts/postconnect/mitmprotector')
+					exit(1)
+				print('[WICD] Created /etc/wicd/scripts/predisconnect/mitmprotector and /etc/wicd/scripts/postconnect/mitmprotector => 755')
+				print('[WICD] execute /etc/init.d/wicd force-reload...')
+				popen('/etc/init.d/wicd force-reload 2>/dev/null')
 		else:
 			print('[WICD] Not found!')
 		print('[+++] Done! Scripts added!')
