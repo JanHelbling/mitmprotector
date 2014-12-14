@@ -18,9 +18,9 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from os import popen,getuid,path,fork,mkdir,execvp,waitpid,WEXITSTATUS,unlink,chmod,getpid
+from os import popen,getuid,path,fork,execvp,waitpid,unlink,chmod,getpid
 
-from sys import exit,argv,stdout
+from sys import exit
 
 from time import sleep
 
@@ -43,7 +43,7 @@ log_path	= '/var/log/mitmprotector.log'
 pid_file	= '/var/run/mitmprotector.pid'
 
 prog_name	= 'mitmprotector.py'
-version		= '17'
+version		= '19'
 
 class mitm_protect:
 	def __init__(self):
@@ -127,7 +127,7 @@ class mitm_protect:
 	def __arptable_firewall(self):
 		self.routerip		=	self.__getrouterip()
 		if popen('arptables --help 2>/dev/null').read() == '':
-			print('arptables not found!!! Could not create a firewall!!!')
+			print('Command "arptables" not found!!! Could not create a firewall!!!')
 			critical('Command "arptables" not found!!! Could not create a firewall!!!')
 			return
 		info('Creating a firewall with arptables and arp!')
@@ -167,8 +167,9 @@ class mitm_protect:
 			if self.attacker != ():
 				print('ALARM! arppoisoning detected!!!')
 				print('Exexute predefined command: \'{}\'!'.format(self.cmd.format(self.attacker[0],self.attacker[1])))
-				warning('ALARM! arppoisoning detected!!!')
-				if not fork():
+				critical('ALARM! arppoisoning detected!!!')
+				self.pid = fork()
+				if not self.pid:
 					popen(self.exec_cmd.format(self.attacker[0],self.attacker[1]),'r')
 					if self.putinterfacesdown:
 						print('Shut down the networkinterfaces: {}'.format(self.interfaces))
@@ -178,6 +179,10 @@ class mitm_protect:
 							print('{}: turned off!'.format(interface))
 							critical('{}: turned off!'.format(interface))
 					exit(0)
+				wait()
+				print('Disconnected from Network!')
+				self.__remove_firewall()
+				exit(0)
 			print('[{0}] Sleeping {1} seconds until the next check.'.format(self.counter,self.scan_timeout))
 			sleep(self.scan_timeout)
 	
@@ -227,12 +232,15 @@ class mitm_protect:
 				print('Error: Couldn\'t open /proc/net/route: {}.'.format(e.strerror))
 				print('Trying alternate methods to get the RouterIP.')
 		else:
-			print('/proc/net/route doesn\'t exists,  trying alternate methods to get the RouterIP.')
+			info('File "/proc/net/route" doesn\'t exists! Trying alternate methods to get the RouterIP.')
+			print('File "/proc/net/route" doesn\'t exists! Trying alternate methods to get the RouterIP.')
 		try:
+			info('=> Method 2: route -n')
 			print('=> Method 2: route -n')
 			return findall('\d+\.\d+\.\d+\.\d+',popen('route -n').read().split("\n")[2])[1]
 		except IndexError:
 			try:
+				info('=> Method 3: ifconfig {} | grep inet'.format(self.iface))
 				print('=> Method 3: ifconfig {} | grep inet'.format(self.iface))
 				return findall('\d+\.\d+\.\d+\.\d+',popen('ifconfig {} | grep inet\ '.format(self.iface)).read())[0].rstrip('1234567890') + '1'
 			except IndexError:
@@ -250,8 +258,8 @@ if __name__ == '__main__':
 	parser	=	OptionParser(version='%prog version {}\nCopyright (C) 2014 by Jan Helbling <jan.helbling@gmail.com>\nLicense: GPL3+\nlp:~jan-helbling/+junk/mitmprotector\nhttps://github.com/JanHelbling/mitmprotector.git'.format(version))
 	parser.add_option('-d','--daemon',dest='daemon',action='store_true',default=False,help='Run mitmprotector as a daemon.')
 	parser.add_option('-f','--foreground',dest='nodaemon',action='store_true',default=True,help='Run mitmprotector in foreground.')
-	parser.add_option('-n','--nm-aoc',dest='nmaoc',action='store_true',default=False,help='Enable  Autostart/stop -scripts on /etc/network/if-post-down.d/ and /etc/network/if-up.d/')
-	parser.add_option('-r','--rm-aoc',dest='rmaoc',action='store_true',default=False,help='Disable the Autostart/stop scripts')
+	parser.add_option('-n','--nm-aoc',dest='nmaoc',action='store_true',default=False,help='Enable  Autostart/stop -scripts for NetworkManager and WICD')
+	parser.add_option('-r','--rm-aoc',dest='rmaoc',action='store_true',default=False,help='Disable the Autostart/stop -scripts for NetworkManager and WICD')
 	
 	(options, args) = parser.parse_args()
 	
@@ -268,6 +276,7 @@ if __name__ == '__main__':
 	
 	if options.nmaoc:
 		if path.exists('/etc/network/if-post-down.d/') and path.exists('/etc/network/if-up.d/'):
+			print('[NetworkManager] Found! Installing scripts.')
 			try:
 				mitmprotector_down		=	open('/etc/network/if-post-down.d/mitmprotector','w')
 				mitmprotector_up		=	open('/etc/network/if-up.d/mitmprotector','w')
@@ -276,35 +285,69 @@ if __name__ == '__main__':
 				mitmprotector_down.close()
 				mitmprotector_up.close()
 			except OSError, e:
-				print('Failed to create {}: {}.'.format(e.filename,e.strerror))
+				print('[NetworkManager] Failed to create {}: {}.'.format(e.filename,e.strerror))
 				exit(1)
 			try:
 				chmod('/etc/network/if-post-down.d/mitmprotector',0755)
 				chmod('/etc/network/if-up.d/mitmprotector',0755)
 			except OSError, e:
-				print('Failed to chmod {}: {}.'.format(e.filename,e.strerror))
+				print('[NetworkManager] Failed to chmod->755 {}: {}.'.format(e.filename,e.strerror))
+				print('    You must manual chmod 755 these files:')
+				print('    /etc/network/if-post-down.d/mitmprotector')
+				print('    /etc/network/if-up.d/mitmprotector')
 				exit(1)
-			print('Created /etc/network/if-post-down.d/mitmprotector and /etc/network/if-up.d/mitmprotector => 755')
-			print('execute /etc/init.d/networking reload...')
+			print('[NetworkManager] Created /etc/network/if-post-down.d/mitmprotector and /etc/network/if-up.d/mitmprotector => 755')
+			print('[NetworkManager] execute /etc/init.d/networking reload...')
 			popen('/etc/init.d/networking reload 2>/dev/null')
-			print('Done! Scripts added. To remove the scripts: mitmprotector.py --rm-aoc')
-			exit(0)
 		else:
-			print('Error: Directorys /etc/network/if-up.d and /etc/if-post-down.d doesn\'t exists!')
-			exit(1)
-	elif options.rmaoc:
-		if not path.exists('/etc/network/if-post-down.d/mitmprotector') and not path.exists('/etc/network/if-up.d/mitmprotector'):
-			print('The scripts doesn\'t exists. Nothing to delete.')
-			exit(0)
-		try:
-			unlink('/etc/network/if-post-down.d/mitmprotector')
-			unlink('/etc/network/if-up.d/mitmprotector')
-		except OSError, e:
-			print('Error: Couldn\'t remove {}: {}.'.format(e.filename,e.strerror))
-			exit(1)
-		print('Done! Scripts removed!')
+			print('[NetworkManager] Not found!')
+		if path.exists('/etc/wicd/scripts/postconnect/') and path.exists('/etc/wicd/scripts/predisconnect/'):
+			print('[WICD] Found! Installing scripts.')
+			try:
+				mitmprotector_down		=	open('/etc/wicd/scripts/predisconnect/mitmprotector','w')
+				mitmprotector_up		=	open('/etc/wicd/scripts/postconnect/mitmprotector','w')
+				mitmprotector_down.write('#!/bin/bash\npkill -TERM -F /var/run/mitmprotector.pid')
+				mitmprotector_up.write('#!/bin/bash\n{} -d'.format(prog_name))
+				mitmprotector_down.close()
+				mitmprotector_up.close()
+			except OSError, e:
+				print('[WICD] Failed to create {}: {}.'.format(e.filename,e.strerror))
+				exit(1)
+			try:
+				chmod('/etc/wicd/scripts/predisconnect/mitmprotector',0755)
+				chmod('/etc/wicd/scripts/postconnect/mitmprotector',0755)
+			except OSError, e:
+				print('[WICD] Failed to chmod->755 {}: {}.'.format(e.filename,e.strerror))
+				print('    You must manual chmod 755 these files:')
+				print('    /etc/wicd/scripts/predisconnect/mitmprotector')
+				print('    /etc/wicd/scripts/postconnect/mitmprotector')
+				exit(1)
+			print('[WICD] Created /etc/wicd/scripts/predisconnect/mitmprotector and /etc/wicd/scripts/postconnect/mitmprotector => 755')
+			print('[WICD] execute /etc/init.d/wicd force-reload...')
+			popen('/etc/init.d/wicd force-reload 2>/dev/null')
+		else:
+			print('[WICD] Not found!')
+		print('[+++] Done! Scripts added!')
 		exit(0)
-	
+	elif options.rmaoc:
+		if path.exists('/etc/network/if-post-down.d/mitmprotector') and path.exists('/etc/network/if-up.d/mitmprotector'):
+			print('[NetworkManager] Found! Removing scripts.')
+			try:
+				unlink('/etc/network/if-post-down.d/mitmprotector')
+				unlink('/etc/network/if-up.d/mitmprotector')
+			except OSError, e:
+				print('Error: Couldn\'t remove {}: {}.'.format(e.filename,e.strerror))
+				exit(1)
+		if path.exists('/etc/wicd/scripts/predisconnect/mitmprotector') and path.exists('/etc/wicd/scripts/postconnect/mitmprotector'):
+			print('[WICD] Found! Removing scripts.')
+			try:
+				unlink('/etc/wicd/scripts/predisconnect/mitmprotector')
+				unlink('/etc/wicd/scripts/postconnect/mitmprotector')
+			except OSError, e:
+				print('Error: Couldn\'t remove {}: {}.'.format(e.filename,e.strerror))
+				exit(1)
+		print('[+++] Done! Scripts removed!')
+		exit(0)
 	if path.exists(pid_file):
 		try:
 			pid_of_pidfile	=	open(pid_file,'r').read().rstrip('\n')

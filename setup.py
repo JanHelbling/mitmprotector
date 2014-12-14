@@ -3,7 +3,7 @@
 from distutils.core import setup
 
 setup(name='mitmprotector',
-      version='17',
+      version='19',
       description='mitmprotector - protect\'s you from any kind of MITM-attacks, arpspoofing, ettercap, sslstrip, droidsheep, zAnti, dsploit, etc.',
       license='GPL3+',
       author='Jan Helbling',

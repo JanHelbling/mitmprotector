@@ -20,25 +20,26 @@ MITM-protector - protect's you from any kind of MITM-attacks, arpspoofing,
 ettercap, sslstrip, droidsheep, zAnti, dsploit, etc.
 
  - It use the arp command to compare MAC and IP -Addresses
- - Execute Command (notify-send?) and Drop all InetInterfaces down by Alert
+ - Execute Command (notify-send?) and Drop all InetInterfaces down by Attack
  - Create a Firewall if arptables is installed
  - Run as a Daemon or in Foreground
- - Enable it full automated on each Connection
+ - Enable startup on each connect/disconnect from network
 
-Configuration-File: /etc/mitmprotector.cnf (after first execution)
+Configuration-File: /etc/mitmprotector.conf (after first execution)
 Logfile: /var/log/mitmprotector.log
 Pidfile: /var/run/mitmprotector.pid
 
 Install:
  $ sudo ./setup.py install --prefix=/usr
 
-First execution (it will create /etc/mitmprotector.cfg):
+First execution (it will create /etc/mitmprotector.conf):
  $ sudo mitmprotector.py
 
 Run mitmprotector as a daemon (with pidfile /var/run/mitmprotector.pid => use SIGTERM to stop it):
  $ sudo mitm-protector.py --daemon
 
-Enable mitmprotector-scripts to Ubuntus networkmanager if-up.d/ & if-post-down.d/:
+Enable mitmprotector-scripts to Ubuntus networkmanager or WICD:
+(It will start/stop autmoated on every connect/disconnect)
  $ sudo mitmprotector.py --nm-aoc
 
 To Disable:
