@@ -43,7 +43,7 @@ log_path	= '/var/log/mitmprotector.log'
 pid_file	= '/var/run/mitmprotector.pid'
 
 prog_name	= 'mitmprotector.py'
-version		= '15'
+version		= '16'
 
 FIRSTRUN	= False
 
@@ -219,18 +219,25 @@ class mitm_protect:
 					
 	
 	def __getrouterip(self):
-		try:
-			with open('/proc/net/route') as fh:
-				for line in fh:
-					fields = line.strip().split()
-					if fields[1] != '00000000' or not int(fields[3], 16) & 2:
-						continue
-					return inet_ntoa(pack('<L', int(fields[2], 16)))
-		except OSError, e:
-			critical('Error: Couldn\'t open /proc/net/route: {}.'.format(e.strerror))
-			print('Error: Couldn\'t open /proc/net/route: {}.'.format(e.strerror))
+		if path.exists('/proc/net/route'):
+			try:
+				with open('/proc/net/route') as fh:
+					for line in fh:
+						fields = line.strip().split()
+						if fields[1] != '00000000' or not int(fields[3], 16) & 2:
+							continue
+						return inet_ntoa(pack('<L', int(fields[2], 16)))
+			except OSError, e:
+				critical('Error: Couldn\'t open /proc/net/route: {}.'.format(e.strerror))
+				print('Error: Couldn\'t open /proc/net/route: {}.'.format(e.strerror))
+				exit(1)
+		else:
+			critical('File /proc/net/route doesn\'t exists! Failed to get RouterIP!')
+			critical('Shutting down mitmprotector.')
+			print('File /proc/net/route doesn\'t exists! Failed to get RouterIP!')
+			print('Shutting down mitmprotector.')
 			exit(1)
-	
+
 if __name__ == '__main__':
 	if getuid() != 0:
 		print('{} must be run as root (uid == 0)!'.format(prog_name))
@@ -240,8 +247,7 @@ if __name__ == '__main__':
 	parser.add_option('-d','--daemon',dest='daemon',action='store_true',default=False,help='Run mitmprotector as a daemon.')
 	parser.add_option('-f','--foreground',dest='nodaemon',action='store_true',default=True,help='Run mitmprotector in foreground.')
 	parser.add_option('-n','--nm-aoc',dest='nmaoc',action='store_true',default=False,help='Enable  Autostart/stop -scripts on /etc/network/if-post-down.d/ and /etc/network/if-up.d/')
-	parser.add_option('-r','--rm-aoc',dest='rmaoc',action='store_true',default=False,help='Disable the Autostart/stop scripts'
-)
+	parser.add_option('-r','--rm-aoc',dest='rmaoc',action='store_true',default=False,help='Disable the Autostart/stop scripts')
 	
 	(options, args) = parser.parse_args()
 	
@@ -269,6 +275,9 @@ if __name__ == '__main__':
 		print('Done! Scripts added. To remove the scripts: mitmprotector.py --rm-aoc')
 		exit(0)
 	elif options.rmaoc:
+		if not path.exists('/etc/network/if-post-down.d/mitmprotector') and not path.exists('/etc/network/if-up.d/mitmprotector'):
+			print('The scripts doesn\'t exists. Nothing to delete.')
+			exit(0)
 		try:
 			unlink('/etc/network/if-post-down.d/mitmprotector')
 			unlink('/etc/network/if-up.d/mitmprotector')
@@ -277,28 +286,30 @@ if __name__ == '__main__':
 			exit(1)
 		print('Done! Scripts removed!')
 		exit(0)
-	try:
-		pid_of_pidfile	=	open(pid_file,'r').read().rstrip('\n')
-		pid_of_pgrep	=	popen('pgrep -x mitmprotector.p').read().replace(str(getpid()),'').rstrip('\n')
-		if pid_of_pidfile != '' and pid_of_pidfile not in pid_of_pgrep:
-			try:
-				unlink(pid_file)
-			except OSError, e:
-				print('Error: Couldn\'t remove {}: {}.'.format(e.filename,e.strerror))
-				exit(1)
-		else:
-			print('mitmprotector is already running! {}: {}'.format(pid_file,pid_of_pidfile))
+	if path.exists(pid_file):
+		try:
+			pid_of_pidfile	=	open(pid_file,'r').read().rstrip('\n')
+		except OSError, e:
+			print('Could not read {}: {}.'.format(e.filename,e.strerror))
 			exit(1)
-	except IOError, e:
-		pid_of_pgrep	=	popen('pgrep -x mitmprotector.p').read().replace(str(getpid()),'').rstrip('\n')
-		if pid_of_pgrep != '':
-			print('mitmprotector is already running! Pid: {}'.format(pid_of_pgrep))
+	else:
+		pid_of_pidfile	=	''
+	pid_of_pgrep	=	popen('pgrep -x mitmprotector.p').read().replace(str(getpid()),'').rstrip('\n')
+	if pid_of_pidfile != '' and pid_of_pidfile not in pid_of_pgrep:
+		try:
+			unlink(pid_file)
+		except OSError, e:
+			print('Error: Couldn\'t remove {}: {}.'.format(e.filename,e.strerror))
 			exit(1)
-	if options.nodaemon and not options.daemon:
-		x = mitm_protect()
-	elif options.daemon:
-		print('Starting daemon...')
-		with daemon.DaemonContext():
-			daemon.pidlockfile.write_pid_to_pidfile(pid_file)
+	elif pid_of_pidfile != '' and pid_of_pidfile in pid_of_pgrep:
+		print('mitmprotector is already running! {}: {}.'.format(pid_file,pid_of_pidfile))
+		exit(1)
+	else:
+		if options.nodaemon and not options.daemon:
 			x = mitm_protect()
+		elif options.daemon:
+			print('Starting daemon...')
+			with daemon.DaemonContext():
+				daemon.pidlockfile.write_pid_to_pidfile(pid_file)
+				x = mitm_protect()
 
