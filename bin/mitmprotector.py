@@ -39,7 +39,7 @@ log_path	= '/var/log/mitmprotector.log'
 pid_file	= '/var/run/mitmprotector.pid'
 
 prog_name	= 'mitmprotector.py'
-version		= '23'
+version		= '24'
 
 class mitm_protect:
 	def __init__(self):
