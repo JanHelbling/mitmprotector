@@ -28,7 +28,11 @@ from socket import inet_ntoa
 from uuid import getnode
 from signal import signal,SIGTERM
 from optparse import OptionParser
-import daemon,daemon.pidlockfile
+try:
+	import daemon,daemon.pidlockfile
+except ImprotError:
+	print "You must install python(2)-daemon to run this programm!"
+	exit(1)
 import ConfigParser
 
 ip_regex 	= compile('\d+\.\d+\.\d+\.\d+')
