@@ -172,6 +172,7 @@ class mitm_protect:
 				print('ALARM! arppoisoning detected!!!')
 				print('Exexute predefined command: \'{}\'!'.format(self.cmd.format(self.attacker[0],self.attacker[1])))
 				critical('ALARM! arppoisoning detected!!!')
+				critical('Exexute predefined command: \'{}\'!'.format(self.cmd.format(self.attacker[0],self.attacker[1])))
 				self.pid = fork()
 				if not self.pid:
 					popen(self.exec_cmd.format(self.attacker[0],self.attacker[1]),'r')
