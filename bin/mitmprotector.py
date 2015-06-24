@@ -30,7 +30,7 @@ from signal import signal,SIGTERM
 from optparse import OptionParser
 try:
 	import daemon,daemon.pidlockfile
-except ImprotError:
+except ImportError:
 	print "You must install python(2)-daemon to run this programm!"
 	exit(1)
 import ConfigParser
