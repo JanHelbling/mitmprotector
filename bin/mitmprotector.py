@@ -1,8 +1,9 @@
 #!/usr/bin/python2
+# -*- coding: utf-8 -*-
 #
 #    mitmprotector.py - protect's you from any kind of MITM-attacks.
 #
-#    Copyright (C) 2014 by Jan Helbling <jan.helbling@gmail.com>
+#    Copyright (C) 2018 by Jan Helbling <jan.helbling@gmail.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -29,7 +30,7 @@ from uuid import getnode
 from signal import signal,SIGTERM
 from optparse import OptionParser
 try:
-	import daemon,daemon.pidlockfile
+	import daemon,daemon.pidfile
 except ImportError:
 	print "You must install python(2)-daemon to run this programm!"
 	exit(1)
@@ -43,9 +44,12 @@ log_path	= '/var/log/mitmprotector.log'
 pid_file	= '/var/run/mitmprotector.pid'
 
 prog_name	= 'mitmprotector.py'
-version		= '24'
+version		= '25'
+
+pf		= daemon.pidfile.PIDLockFile(pid_file)
 
 class mitm_protect:
+	global pf
 	def __init__(self):
 		basicConfig(filename=log_path,filemode='a',level=DEBUG,format='%(asctime)s - %(levelname)s - %(message)s',datefmt='%d.%m.%Y - %H:%M:%S')
 		info('=> mitmprotector started!')
@@ -56,14 +60,16 @@ class mitm_protect:
 		try:
 			self.__run()
 		except KeyboardInterrupt:
-			daemon.pidlockfile.remove_existing_pidfile(pid_file)
+			if pf.is_locked():
+				pf.release()
 			self.__remove_firewall()
 		info('=> mitmprotector ended!')
 		print('=> mitmprotector ended!')
 	
 	def __sigterm_handler(self,a,b):
 		self.__remove_firewall()
-		daemon.pidlockfile.remove_existing_pidfile(pid_file)
+		if pf.is_locked():
+			pf.release()
 		exit(0)
 	
 	def __get_hw_addr(self):
@@ -96,7 +102,8 @@ class mitm_protect:
 			critical('Shutting down mitmprotector.')
 			print('Could not read config {}!'.format(config_path))
 			print('Shutting down mitmprotector.')
-			daemon.pidlockfile.remove_existing_pidfile(pid_file)
+			if pf.is_locked():
+				pf.release()
 			exit(1)
 		try:
 			self.exec_cmd		=	config.get('attack','exec')
@@ -110,21 +117,24 @@ class mitm_protect:
 			critical('Shutting down mitmprotector.')
 			print('Could not read config {}: {}.'.format(config_path,e))
 			print('Shutting down mitmprotector.')
-			daemon.pidlockfile.remove_existing_pidfile(pid_file)
+			if pf.is_locked():
+				pf.release()
 			exit(1)
 		except ConfigParser.NoOptionError, e:
 			critical('Could not read config {}: {}.'.format(config_path,e.message))
 			critical('Shutting down mitmprotector.')
 			print('Could not read config {}: {}.'.format(config_path,e.message))
 			print('Shutting down mitmprotector.')
-                        daemon.pidlockfile.remove_existing_pidfile(pid_file)
+			if pf.is_locked():
+	                        pf.release()
 			exit(1)
 		except ValueError, e:
 			critical('Could not read floatvalue [arp-scanner]->timeout: {}'.format(e.message))
 			critical('Shutting down mitmprotector.')
 			print('Could not read floatvalue [arp-scanner]->timeout: {}'.format(e.message))
 			print('Shutting down mitmprotector.')
-			daemon.pidlockfile.remove_existing_pidfile(pid_file)
+			if pf.is_locked():
+				pf.release()
 			exit(1)
 	
 	def __arptable_firewall(self):
@@ -150,7 +160,8 @@ class mitm_protect:
 				critical('Shutting down mitmprotector.')
 				print('Could not find the MAC of {}'.format(self.routerip))
 				print('Shutting down mitmprotector.')
-				daemon.pidlockfile.remove_existing_pidfile(pid_file)
+				if pf.is_locked():
+					pf.release()
 				exit(1)
 			print('Router-MAC: {}'.format(self.mac))
 		popen('arptables --zero && arptables -P INPUT DROP && arptables -P OUTPUT DROP && arptables -A INPUT -s {0} --source-mac {1} -j ACCEPT && arptables -A OUTPUT -d {0} --destination-mac {1} -j ACCEPT && arp -s {0} {1}'.format(self.routerip,self.mac), 'r')
@@ -188,7 +199,8 @@ class mitm_protect:
 					info('Disconnected from Network!')
 					print('Disconnected from Network!')
 					self.__remove_firewall()
-					daemon.pidlockfile.remove_existing_pidfile(pid_file)
+					if pf.is_locked():
+						pf.release()
 					exit(0)
 			print('[{0}] Sleeping {1} seconds until the next check.'.format(self.counter,self.scan_timeout))
 			sleep(self.scan_timeout)
@@ -264,7 +276,8 @@ class mitm_protect:
 					critical('Shutting down mitmprotector.')
 					print('Failed to get RouterIP!')
 					print('Shutting down mitmprotector.')
-					daemon.pidlockfile.remove_existing_pidfile(pid_file)
+					if pf.is_locked():
+						pf.release()
 					exit(1)
 
 if __name__ == '__main__':
@@ -374,33 +387,15 @@ if __name__ == '__main__':
 				exit(1)
 		print('[+++] Done! Scripts removed!')
 		exit(0)
-	if path.exists(pid_file):
-		try:
-			pid_of_pidfile	=	open(pid_file,'r').read().rstrip('\n')
-		except OSError, e:
-			print('Could not read {}: {}.'.format(e.filename,e.strerror))
-			exit(1)
 	else:
-		pid_of_pidfile	=	''
-	
-	pid_of_pgrep	=	popen('pgrep -x mitmprotector.p').read().replace(str(getpid()),'').rstrip('\n')
-	
-	if pid_of_pidfile != '' and pid_of_pidfile not in pid_of_pgrep:
-		try:
-			unlink(pid_file)
-		except OSError, e:
-			print('Error: Couldn\'t remove {}: {}.'.format(e.filename,e.strerror))
-			exit(1)
-	
-	elif pid_of_pidfile != '' and pid_of_pidfile in pid_of_pgrep:
-		print('mitmprotector is already running! {}: {}.'.format(pid_file,pid_of_pidfile))
-		exit(1)
-	else:
-		if options.nodaemon and not options.daemon:
-			programm = mitm_protect()
-		elif options.daemon:
-			print('Starting daemon...')
-			with daemon.DaemonContext():
-				daemon.pidlockfile.write_pid_to_pidfile(pid_file)
+		if not pf.read_pid():
+			if options.nodaemon and not options.daemon:
 				programm = mitm_protect()
+			elif options.daemon:
+				print('Starting daemon...')
+				with daemon.DaemonContext():
+					pf.acquire()
+					programm = mitm_protect()
+		else:
+			print "Already running: PID: %d" % pf.read_pid()
 
