@@ -245,14 +245,18 @@ class mitm_protect:
 						if fields[1] != '00000000' or not int(fields[3], 16) & 2:
 							continue
 						return inet_ntoa(pack('<L', int(fields[2], 16)))
+				critical('Error: Couldn\'t get ip from "/proc/net/route"')
+				info('Trying 3 alternate methods to get the RouterIP.')
+				print('Error: Couldn\'t get ip from "/proc/net/route"')
+				print('Trying 3 alternate methods to get the RouterIP.')
 			except OSError, e:
 				critical('Error: Couldn\'t open "/proc/net/route": {}.'.format(e.strerror))
-				info('Trying 4 alternate methods to get the RouterIP.')
+				info('Trying 3 alternate methods to get the RouterIP.')
 				print('Error: Couldn\'t open "/proc/net/route": {}.'.format(e.strerror))
-				print('Trying 4 alternate methods to get the RouterIP.')
+				print('Trying 3 alternate methods to get the RouterIP.')
 		else:
-			info('File "/proc/net/route" doesn\'t exists! Trying 4 alternate methods to get the RouterIP.')
-			print('File "/proc/net/route" doesn\'t exists! Trying 4 alternate methods to get the RouterIP.')
+			info('File "/proc/net/route" doesn\'t exists! Trying 3 alternate methods to get the RouterIP.')
+			print('File "/proc/net/route" doesn\'t exists! Trying 3 alternate methods to get the RouterIP.')
 		try:
 			info('=> Method 2: route -n')
 			print('=> Method 2: route -n')
