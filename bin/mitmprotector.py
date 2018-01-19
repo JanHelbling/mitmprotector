@@ -48,7 +48,7 @@ version		= '25'
 
 pf		= daemon.pidfile.PIDLockFile(pid_file)
 
-class mitm_protect:
+class mitm_protector:
 	global pf
 	def __init__(self):
 		basicConfig(filename=log_path,filemode='a',level=DEBUG,format='%(asctime)s - %(levelname)s - %(message)s',datefmt='%d.%m.%Y - %H:%M:%S')
@@ -394,12 +394,12 @@ if __name__ == '__main__':
 	else:
 		if not pf.read_pid():
 			if options.nodaemon and not options.daemon:
-				programm = mitm_protect()
+				programm = mitm_protector()
 			elif options.daemon:
 				print('Starting daemon...')
 				with daemon.DaemonContext():
 					pf.acquire()
-					programm = mitm_protect()
+					programm = mitm_protector()
 		else:
 			print "Already running: PID: %d" % pf.read_pid()
 
