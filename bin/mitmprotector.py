@@ -284,34 +284,28 @@ class mitm_protector:
 						pf.release()
 					exit(1)
 
-if __name__ == '__main__':
-	if getuid() != 0:
-		print('{} must be run as root (uid == 0)!'.format(prog_name))
-		exit(1)
+class script_manager:
+	def remove_scripts(self):
+		if path.exists('/etc/network/if-post-down.d/mitmprotector') and path.exists('/etc/network/if-up.d/mitmprotector'):
+			print('[NetworkManager] Found! Removing scripts.')
+			try:
+				unlink('/etc/network/if-post-down.d/mitmprotector')
+				unlink('/etc/network/if-up.d/mitmprotector')
+			except OSError, e:
+				print('Error: Couldn\'t remove {}: {}.'.format(e.filename,e.strerror))
+				exit(1)
+		if path.exists('/etc/wicd/scripts/predisconnect/mitmprotector') and path.exists('/etc/wicd/scripts/postconnect/mitmprotector'):
+			print('[WICD] Found! Removing scripts.')
+			try:
+				unlink('/etc/wicd/scripts/predisconnect/mitmprotector')
+				unlink('/etc/wicd/scripts/postconnect/mitmprotector')
+			except OSError, e:
+				print('Error: Couldn\'t remove {}: {}.'.format(e.filename,e.strerror))
+				exit(1)
+		print('[+++] Done! Scripts removed!')
+		exit(0)
 	
-	parser	=	OptionParser(version='%prog version {}\nCopyright (C) 2014 by Jan Helbling <jan.helbling@gmail.com>\nLicense: GPL3+\nlp:~jan-helbling/+junk/mitmprotector\nhttps://github.com/JanHelbling/mitmprotector.git'.format(version))
-	parser.add_option('-d','--daemon',dest='daemon',action='store_true',default=False,help='Run mitmprotector as a daemon.')
-	parser.add_option('-f','--foreground',dest='nodaemon',action='store_true',default=True,help='Run mitmprotector in foreground.')
-	parser.add_option('-k','--kill',dest='kill',action='store_true',default=False,help='Kill mitmprotector with a SIGTERM!')
-	parser.add_option('-n','--nm-aoc',dest='nmaoc',action='store_true',default=False,help='Enable  NetworkManager/WICD -autostartscripts')
-	parser.add_option('-r','--rm-aoc',dest='rmaoc',action='store_true',default=False,help='Disable NetworkManager/WICD -autostartscripts')
-	
-	(options, args) = parser.parse_args()
-	
-	if not path.exists(config_path):
-		options.daemon		=	False
-		options.nodaemon	=	True
-	
-	if popen('arp-scan --help 2>&1 | grep 0x0800').read() == '':
-		print('You must install arp-scan to use this tool!')
-		print('Ubuntu:    sudo apt-get install arp-scan')
-		print('ArchLinux: sudo pacman -S arp-scan')
-		print('Fedora:    sudo yum install arp-scan')
-		exit(1)
-	if options.kill:
-		print('[EXEC] pkill -TERM mitmprotector.p')
-		popen('pkill -TERM mitmprotector.p 2>/dev/null')
-	if options.nmaoc:
+	def add_scripts(self):
 		if path.exists('/etc/network/if-post-down.d/') and path.exists('/etc/network/if-up.d/'):
 			if path.exists('/etc/network/if-post-down.d/mitmprotector') and path.exists('/etc/network/if-up.d/mitmprotector'):
 				print('[NetworkManager] Scripts already installed!')
@@ -372,25 +366,41 @@ if __name__ == '__main__':
 			print('[WICD] Not found!')
 		print('[+++] Done! Scripts added!')
 		exit(0)
+
+if __name__ == '__main__':
+	if getuid() != 0:
+		print('{} must be run as root (uid == 0)!'.format(prog_name))
+		exit(1)
+	
+	parser	=	OptionParser(version='%prog version {}\nCopyright (C) 2014 by Jan Helbling <jan.helbling@gmail.com>\nLicense: GPL3+\nlp:~jan-helbling/+junk/mitmprotector\nhttps://github.com/JanHelbling/mitmprotector.git'.format(version))
+	parser.add_option('-d','--daemon',dest='daemon',action='store_true',default=False,help='Run mitmprotector as a daemon.')
+	parser.add_option('-f','--foreground',dest='nodaemon',action='store_true',default=True,help='Run mitmprotector in foreground.')
+	parser.add_option('-k','--kill',dest='kill',action='store_true',default=False,help='Kill mitmprotector with a SIGTERM!')
+	parser.add_option('-n','--nm-aoc',dest='nmaoc',action='store_true',default=False,help='Enable  NetworkManager/WICD -autostartscripts')
+	parser.add_option('-r','--rm-aoc',dest='rmaoc',action='store_true',default=False,help='Disable NetworkManager/WICD -autostartscripts')
+	
+	(options, args) = parser.parse_args()
+	
+	if not path.exists(config_path):
+		options.daemon		=	False
+		options.nodaemon	=	True
+	
+	if popen('arp-scan --help 2>&1 | grep 0x0800').read() == '':
+		print('You must install arp-scan to use this tool!')
+		print('Ubuntu:    sudo apt-get install arp-scan')
+		print('ArchLinux: sudo pacman -S arp-scan')
+		print('Fedora:    sudo yum install arp-scan')
+		exit(1)
+	if options.kill:
+		print('[EXEC] pkill -TERM mitmprotector.p')
+		popen('pkill -TERM mitmprotector.p 2>/dev/null')
+	
+	sm	=	script_manager()
+	
+	if options.nmaoc:
+		sm.add_scripts()
 	elif options.rmaoc:
-		if path.exists('/etc/network/if-post-down.d/mitmprotector') and path.exists('/etc/network/if-up.d/mitmprotector'):
-			print('[NetworkManager] Found! Removing scripts.')
-			try:
-				unlink('/etc/network/if-post-down.d/mitmprotector')
-				unlink('/etc/network/if-up.d/mitmprotector')
-			except OSError, e:
-				print('Error: Couldn\'t remove {}: {}.'.format(e.filename,e.strerror))
-				exit(1)
-		if path.exists('/etc/wicd/scripts/predisconnect/mitmprotector') and path.exists('/etc/wicd/scripts/postconnect/mitmprotector'):
-			print('[WICD] Found! Removing scripts.')
-			try:
-				unlink('/etc/wicd/scripts/predisconnect/mitmprotector')
-				unlink('/etc/wicd/scripts/postconnect/mitmprotector')
-			except OSError, e:
-				print('Error: Couldn\'t remove {}: {}.'.format(e.filename,e.strerror))
-				exit(1)
-		print('[+++] Done! Scripts removed!')
-		exit(0)
+		sm.remove_scripts()
 	else:
 		if not pf.read_pid():
 			if options.nodaemon and not options.daemon:
