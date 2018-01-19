@@ -269,11 +269,11 @@ class mitm_protector:
 			except IndexError:
 				info('=> Method 4: Guessing (ping -c 1 -W 1 -I {} 192.168.0.1/192.168.1.1/192.168.8.1)'.format(self.interface))
 				print('=> Method 4: Guessing (ping -c 1 -W 1 -I {} 192.168.0.1/192.168.1.1/192.168.2.1)'.format(self.interface))
-				if popen('ping -W 1 -I {} 192.168.0.1 -c 1 | grep -E "1 received"'.format(self.interface)).read() != '':
+				if popen('ping -W 1 -I {} 192.168.0.1 -c 1 2>/dev/null | grep -E "1 received"'.format(self.interface)).read() != '':
 					return '192.168.0.1'
-				elif popen('ping -W 1 -I {} 192.168.1.1 -c 1 | grep -E "1 received"'.format(self.interface)).read() != '':
+				elif popen('ping -W 1 -I {} 192.168.1.1 -c 1 2>/dev/null | grep -E "1 received"'.format(self.interface)).read() != '':
 					return '192.168.1.1'
-				elif popen('ping -W 1 -I {} 192.168.2.1 -c 1 | grep -E "1 received"'.format(self.interface)).read() != '':
+				elif popen('ping -W 1 -I {} 192.168.2.1 -c 1 2>/dev/null | grep -E "1 received"'.format(self.interface)).read() != '':
 					return '192.168.2.1'
 				else:
 					critical('Failed to get RouterIP!')
