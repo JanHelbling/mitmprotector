@@ -34,7 +34,7 @@ import ConfigParser
 try:
 	import daemon,daemon.pidfile
 except ImportError:
-	print "You must install python2-daemon to run this programm!"
+	print('You must install python2-daemon to run this programm!')
 	print('Ubuntu:    sudo apt-get install python-daemon')
 	print('ArchLinux: sudo pacman -S python2-daemon')
 	print('Fedora:    sudo yum install python-daemon')
@@ -420,13 +420,14 @@ if __name__ == '__main__':
 	else:
 		pid	=	pf.read_pid()
 		if not pid:
-			pf.acquire()
 			if options.nodaemon and not options.daemon:
+				pf.acquire()
 				programm = mitmprotector()
 			elif options.daemon:
 				print('Starting daemon...')
 				with daemon.DaemonContext():
+					pf.acquire()
 					programm = mitmprotector()
 		else:
-			print "Already running: PID=%d" % pid
+			print('Already running: PID={}'.format(pid))
 
