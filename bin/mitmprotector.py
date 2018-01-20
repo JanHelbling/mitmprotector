@@ -386,7 +386,7 @@ if __name__ == '__main__':
 	parser	=	OptionParser(version='%prog version {}\nCopyright (C) 2014 by Jan Helbling <jan.helbling@gmail.com>\nLicense: GPL3+\nlp:~jan-helbling/+junk/mitmprotector\nhttps://github.com/JanHelbling/mitmprotector.git'.format(version))
 	parser.add_option('-d','--daemon',dest='daemon',action='store_true',default=False,help='Run mitmprotector as a daemon.')
 	parser.add_option('-f','--foreground',dest='nodaemon',action='store_true',default=True,help='Run mitmprotector in foreground.')
-	parser.add_option('-k','--kill',dest='kill',action='store_true',default=False,help='Kill mitmprotector with a SIGTERM!')
+	parser.add_option('-k','--kill',dest='kill',action='store_true',default=False,help='Kill mitmprotector with SIGTERM!')
 	parser.add_option('-n','--nm-aoc',dest='nmaoc',action='store_true',default=False,help='Enable  NetworkManager/WICD -autostartscripts')
 	parser.add_option('-r','--rm-aoc',dest='rmaoc',action='store_true',default=False,help='Disable NetworkManager/WICD -autostartscripts')
 	
@@ -406,7 +406,7 @@ if __name__ == '__main__':
 		pid	=	pf.read_pid()
 		if pid:
 			kill(pid,SIGTERM)
-			print('{0} PID={1} killed!'.format(prog_name,pid))
+			print('{0} PID={1} terminated!'.format(prog_name,pid))
 		else:
 			print('{0} not running!'.format(prog_name))
 		exit(0)
