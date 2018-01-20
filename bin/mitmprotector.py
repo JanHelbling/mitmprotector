@@ -29,12 +29,13 @@ from socket import inet_ntoa
 from uuid import getnode
 from signal import signal,SIGTERM
 from optparse import OptionParser
+import ConfigParser
+
 try:
 	import daemon,daemon.pidfile
 except ImportError:
 	print "You must install python(2)-daemon to run this programm!"
 	exit(1)
-import ConfigParser
 
 ip_regex 	= compile('\d+\.\d+\.\d+\.\d+')
 mac_regex	= compile('[A-Za-z0-9]+:[A-Za-z0-9]+:[A-Za-z0-9]+:[A-Za-z0-9]+:[A-Za-z0-9]+:[A-Za-z0-9]+')
@@ -48,7 +49,7 @@ version		= '25'
 
 pf		= daemon.pidfile.PIDLockFile(pid_file)
 
-class mitm_protector:
+class mitm_protector(object):
 	global pf
 	def __init__(self):
 		basicConfig(filename=log_path,filemode='a',level=DEBUG,format='%(asctime)s - %(levelname)s - %(message)s',datefmt='%d.%m.%Y - %H:%M:%S')
@@ -284,7 +285,7 @@ class mitm_protector:
 						pf.release()
 					exit(1)
 
-class script_manager:
+class script_manager(object):
 	def remove_scripts(self):
 		if path.exists('/etc/network/if-post-down.d/mitmprotector') and path.exists('/etc/network/if-up.d/mitmprotector'):
 			print('[NetworkManager] Found! Removing scripts.')
