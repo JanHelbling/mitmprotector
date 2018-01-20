@@ -403,7 +403,8 @@ if __name__ == '__main__':
 	elif options.rmaoc:
 		sm.remove_scripts()
 	else:
-		if not pf.read_pid():
+		pid	=	pf.read_pid()
+		if not pid:
 			if options.nodaemon and not options.daemon:
 				programm = mitm_protector()
 			elif options.daemon:
@@ -412,5 +413,5 @@ if __name__ == '__main__':
 					pf.acquire()
 					programm = mitm_protector()
 		else:
-			print "Already running: PID: %d" % pf.read_pid()
+			print "Already running: PID=%d" % pid
 
