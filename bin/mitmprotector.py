@@ -415,13 +415,12 @@ if __name__ == '__main__':
 	else:
 		pid	=	pf.read_pid()
 		if not pid:
+			pf.acquire()
 			if options.nodaemon and not options.daemon:
-				pf.acquire()
 				programm = mitmprotector()
 			elif options.daemon:
 				print('Starting daemon...')
 				with daemon.DaemonContext():
-					pf.acquire()
 					programm = mitmprotector()
 		else:
 			print "Already running: PID=%d" % pid
