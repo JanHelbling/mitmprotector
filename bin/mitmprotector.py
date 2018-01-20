@@ -179,7 +179,7 @@ class mitmprotector(object):
 		if arptables_used:
 			info('Shutting down mitmprotector. Removing arptables firewall...')
 			print('Shutting down mitmprotector. Removing arptables firewall...')
-		popen('arptables --zero && arptables --flush')
+			popen('arptables --zero && arptables --flush')
 
 	def __run__(self):
 		self.__read_config__()
