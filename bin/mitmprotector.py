@@ -34,7 +34,10 @@ import ConfigParser
 try:
 	import daemon,daemon.pidfile
 except ImportError:
-	print "You must install python(2)-daemon to run this programm!"
+	print "You must install python2-daemon to run this programm!"
+	print('Ubuntu:    sudo apt-get install python-daemon')
+	print('ArchLinux: sudo pacman -S python2-daemon')
+	print('Fedora:    sudo yum install python-daemon')
 	exit(1)
 
 ip_regex 	= compile('\d+\.\d+\.\d+\.\d+')
@@ -387,7 +390,7 @@ if __name__ == '__main__':
 		options.nodaemon	=	True
 	
 	if popen('arp-scan --help 2>&1 | grep 0x0800').read() == '':
-		print('You must install arp-scan to use this tool!')
+		print('You must install arp-scan to use this programm!')
 		print('Ubuntu:    sudo apt-get install arp-scan')
 		print('ArchLinux: sudo pacman -S arp-scan')
 		print('Fedora:    sudo yum install arp-scan')
