@@ -57,26 +57,26 @@ class mitm_protector(object):
 		print('=> mitmprotector started!')
 		self.devices	=	[]
 		self.counter	=	0
-		signal(SIGTERM, self.__sigterm_handler)
+		signal(SIGTERM, self.__sigterm_handler__)
 		try:
-			self.__run()
+			self.__run__()
 		except KeyboardInterrupt:
 			if pf.is_locked():
 				pf.release()
-			self.__remove_firewall()
+			self.__remove_firewall__()
 		info('=> mitmprotector ended!')
 		print('=> mitmprotector ended!')
 	
-	def __sigterm_handler(self,a,b):
-		self.__remove_firewall()
+	def __sigterm_handler__(self,a,b):
+		self.__remove_firewall__()
 		if pf.is_locked():
 			pf.release()
 		exit(0)
 	
-	def __get_hw_addr(self):
+	def __get_hw_addr__(self):
 		return ':'.join(findall('..', '%012x' % getnode()))
 	
-	def __read_config(self):
+	def __read_config__(self):
 		print('Loading configuration oddments =)')
 		config		=	ConfigParser.RawConfigParser()
 		if not path.exists(config_path):
@@ -138,8 +138,8 @@ class mitm_protector(object):
 				pf.release()
 			exit(1)
 	
-	def __arptable_firewall(self):
-		self.routerip		=	self.__getrouterip()
+	def __arptable_firewall__(self):
+		self.routerip		=	self.__getrouterip__()
 		if popen('arptables --help 2>/dev/null').read() == '':
 			print('Command "arptables" not found!!! Could not create a firewall!!!')
 			critical('Command "arptables" not found!!! Could not create a firewall!!!')
@@ -168,18 +168,18 @@ class mitm_protector(object):
 		popen('arptables --zero && arptables -P INPUT DROP && arptables -P OUTPUT DROP && arptables -A INPUT -s {0} --source-mac {1} -j ACCEPT && arptables -A OUTPUT -d {0} --destination-mac {1} -j ACCEPT && arp -s {0} {1}'.format(self.routerip,self.mac), 'r')
 		print('arptables --list:\n{}'.format(popen('arptables --list','r').read().rstrip('\n')))
 	
-	def __remove_firewall(self):
+	def __remove_firewall__(self):
 		info('Shutting down mitmprotector. Removing arptables firewall...')
 		popen('arptables --zero && arptables --flush')
 	
-	def __run(self):
-		self.__read_config()
-		self.__arptable_firewall()
+	def __run__(self):
+		self.__read_config__()
+		self.__arptable_firewall__()
 		info('Starting endless loop.')
 		while True:
 			self.counter = self.counter + 1
-			self.__arp()
-			self.__check()
+			self.__arp__()
+			self.__check__()
 			if self.attacker != ():
 				print('ALARM! arppoisoning detected!!!')
 				print('Exexute predefined command: \'{}\'!'.format(self.cmd.format(self.attacker[0],self.attacker[1])))
@@ -199,14 +199,14 @@ class mitm_protector(object):
 				if self.putinterfacedown:
 					info('Disconnected from Network!')
 					print('Disconnected from Network!')
-					self.__remove_firewall()
+					self.__remove_firewall__()
 					if pf.is_locked():
 						pf.release()
 					exit(0)
 			print('[{0}] Sleeping {1} seconds until the next check.'.format(self.counter,self.scan_timeout))
 			sleep(self.scan_timeout)
 	
-	def __arp(self):
+	def __arp__(self):
 		self.fd		=	popen(self.arp_command,'r')
 		self.lines	=	(self.fd.read()).split('\n')
 		self.fd.close()
@@ -224,7 +224,7 @@ class mitm_protector(object):
 				print('The line: "{}".'.format(line.rstrip('\n')))
 		print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>  ARP-LIST END    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n\n')
 
-	def __check(self):
+	def __check__(self):
 		self.attacker	=	()
 		for device in self.devices:
 			for _device in self.devices:
@@ -237,7 +237,7 @@ class mitm_protector(object):
 		self.devices = []
 					
 	
-	def __getrouterip(self):
+	def __getrouterip__(self):
 		if path.exists('/proc/net/route'):
 			try:
 				with open('/proc/net/route') as fh:
