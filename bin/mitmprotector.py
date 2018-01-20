@@ -383,7 +383,7 @@ if __name__ == '__main__':
 		print('{} must be run as root (uid == 0)!'.format(prog_name))
 		exit(1)
 	
-	parser	=	OptionParser(version='%prog version {}\nCopyright (C) 2014 by Jan Helbling <jan.helbling@gmail.com>\nLicense: GPL3+\nlp:~jan-helbling/+junk/mitmprotector\nhttps://github.com/JanHelbling/mitmprotector.git'.format(version))
+	parser	=	OptionParser(version='%prog version {}\nCopyright (C) 2018 by Jan Helbling <jan.helbling@gmail.com>\nLicense: GPL3+\nlp:~jan-helbling/+junk/mitmprotector\nhttps://github.com/JanHelbling/mitmprotector.git'.format(version))
 	parser.add_option('-d','--daemon',dest='daemon',action='store_true',default=False,help='Run mitmprotector as a daemon.')
 	parser.add_option('-f','--foreground',dest='nodaemon',action='store_true',default=True,help='Run mitmprotector in foreground.')
 	parser.add_option('-k','--kill',dest='kill',action='store_true',default=False,help='Kill mitmprotector with SIGTERM!')
