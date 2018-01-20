@@ -52,8 +52,10 @@ version		= '25'
 
 pf		= daemon.pidfile.PIDLockFile(pid_file)
 
+arptables_used	= False
+
 class mitm_protector(object):
-	global pf
+	global pf,arptables_used
 	def __init__(self):
 		basicConfig(filename=log_path,filemode='a',level=DEBUG,format='%(asctime)s - %(levelname)s - %(message)s',datefmt='%d.%m.%Y - %H:%M:%S')
 		info('=> mitmprotector started!')
@@ -170,11 +172,14 @@ class mitm_protector(object):
 			print('Router-MAC: {}'.format(self.mac))
 		popen('arptables --zero && arptables -P INPUT DROP && arptables -P OUTPUT DROP && arptables -A INPUT -s {0} --source-mac {1} -j ACCEPT && arptables -A OUTPUT -d {0} --destination-mac {1} -j ACCEPT && arp -s {0} {1}'.format(self.routerip,self.mac), 'r')
 		print('arptables --list:\n{}'.format(popen('arptables --list','r').read().rstrip('\n')))
+		arptables_used	=	True
 	
 	def __remove_firewall__(self):
-		info('Shutting down mitmprotector. Removing arptables firewall...')
+		if arptables_used:
+			info('Shutting down mitmprotector. Removing arptables firewall...')
+			print('Shutting down mitmprotector. Removing arptables firewall...')
 		popen('arptables --zero && arptables --flush')
-	
+
 	def __run__(self):
 		self.__read_config__()
 		self.__arptable_firewall__()
