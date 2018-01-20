@@ -19,7 +19,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from os import popen,getuid,path,fork,execvp,waitpid,unlink,chmod,getpid
+from os import popen,getuid,path,fork,execvp,wait,unlink,chmod,getpid
 from sys import exit
 from time import sleep
 from logging import info,warning,critical,basicConfig,DEBUG
