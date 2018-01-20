@@ -48,13 +48,14 @@ log_path	= '/var/log/mitmprotector.log'
 pid_file	= '/var/run/mitmprotector.pid'
 
 prog_name	= 'mitmprotector.py'
-version		= '25'
+version		= '26'
 
 pf		= daemon.pidfile.PIDLockFile(pid_file)
 
 arptables_used	= False
 
 class mitmprotector(object):
+	"""mitmprotector.py - protect's you from any kind of MITM-attacks."""
 	global pf,arptables_used
 	def __init__(self):
 		basicConfig(filename=log_path,filemode='a',level=DEBUG,format='%(asctime)s - %(levelname)s - %(message)s',datefmt='%d.%m.%Y - %H:%M:%S')
@@ -294,6 +295,7 @@ class mitmprotector(object):
 					exit(1)
 
 class script_manager(object):
+	"""Add/remove NetworkManager & WICD scripts."""
 	def remove_scripts(self):
 		if path.exists('/etc/network/if-post-down.d/mitmprotector') and path.exists('/etc/network/if-up.d/mitmprotector'):
 			print('[NetworkManager] Found! Removing scripts.')

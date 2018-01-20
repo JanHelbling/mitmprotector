@@ -4,7 +4,7 @@
 from distutils.core import setup
 
 setup(name='mitmprotector',
-      version='25',
+      version='26',
       description='mitmprotector - protect\'s you from any kind of MITM-attacks, arpspoofing, ettercap, sslstrip, droidsheep, zAnti, dsploit, etc.',
       license='GPL3+',
       author='Jan Helbling',
