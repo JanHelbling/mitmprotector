@@ -19,7 +19,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from os import popen,getuid,path,fork,execvp,wait,unlink,chmod,getpid
+from os import popen,getuid,path,fork,execvp,wait,unlink,chmod,getpid,kill
 from sys import exit
 from time import sleep
 from logging import info,warning,critical,basicConfig,DEBUG
@@ -48,7 +48,7 @@ log_path	= '/var/log/mitmprotector.log'
 pid_file	= '/var/run/mitmprotector.pid'
 
 prog_name	= 'mitmprotector.py'
-version		= '26'
+version		= '27'
 
 pf		= daemon.pidfile.PIDLockFile(pid_file)
 
@@ -403,8 +403,13 @@ if __name__ == '__main__':
 		print('Fedora:    sudo yum install arp-scan')
 		exit(1)
 	if options.kill:
-		print('[EXEC] pkill -TERM mitmprotector.p')
-		popen('pkill -TERM mitmprotector.p 2>/dev/null')
+		pid	=	pf.read_pid()
+		if pid:
+			kill(pid,SIGTERM)
+			print('{0} PID={1} killed!'.format(prog_name,pid))
+		else:
+			print('{0} not running!'.format(prog_name))
+		exit(0)
 	
 	sm	=	script_manager()
 	
