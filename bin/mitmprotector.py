@@ -102,6 +102,8 @@ class mitmprotector(object):
 			print('==> First execution <==')
 			print('Created configurationfile {}!'.format(config_path))
 			print('You need to edit it before run {}!'.format(prog_name))
+			if pf.is_locked():
+				pf.release()
 			exit(0)
 		info('Reading configfile {}.'.format(config_path))
 		if config.read(config_path) != [config_path]:
