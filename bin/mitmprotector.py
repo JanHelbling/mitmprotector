@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python2.7
 # -*- coding: utf-8 -*-
 #
 #    mitmprotector.py - protect's you from any kind of MITM-attacks.
