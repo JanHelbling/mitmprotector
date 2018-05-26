@@ -40,6 +40,15 @@ except ImportError:
 	print('Fedora:    sudo yum install python-daemon')
 	exit(1)
 
+try:
+	import lockfile
+except ImportError:
+	print('You must install python2-lockfile to run this programm!')
+	print('Ubuntu:    sudo apt-get install python-lockfile')
+	print('ArchLinux: sudo pacman -S python2-lockfile')
+	print('Fedora:    sudo yum install python-lockfile')
+	exit(1)
+
 ip_regex 	= compile('\d+\.\d+\.\d+\.\d+')
 mac_regex	= compile('[A-Za-z0-9]+:[A-Za-z0-9]+:[A-Za-z0-9]+:[A-Za-z0-9]+:[A-Za-z0-9]+:[A-Za-z0-9]+')
 
@@ -48,7 +57,7 @@ log_path	= '/var/log/mitmprotector.log'
 pid_file	= '/var/run/mitmprotector.pid'
 
 prog_name	= 'mitmprotector.py'
-version		= '27'
+version		= '28'
 
 pf		= daemon.pidfile.PIDLockFile(pid_file)
 
@@ -83,7 +92,7 @@ class mitmprotector(object):
 		return ':'.join(findall('..', '%012x' % getnode()))
 	
 	def __read_config__(self):
-		print('Loading configuration oddments =)')
+		print('=> Loading configuration oddments =)')
 		config		=	ConfigParser.RawConfigParser()
 		if not path.exists(config_path):
 			info('Creating new configfile: {}.'.format(config_path))
@@ -275,9 +284,9 @@ class mitmprotector(object):
 			return findall('\d+\.\d+\.\d+\.\d+',popen('route -n').read().split("\n")[2])[1]
 		except IndexError:
 			try:
-				info('=> Method 3: ifconfig {} | grep inet'.format(self.interface))
-				print('=> Method 3: ifconfig {} | grep inet'.format(self.interface))
-				return findall('\d+\.\d+\.\d+\.\d+',popen('ifconfig {} | grep inet\ '.format(self.interface)).read())[0].rstrip('1234567890') + '1'
+				info('=> Method 3: ifconfig {} 2>&1 | grep inet'.format(self.interface))
+				print('=> Method 3: ifconfig {} 2>&1 | grep inet'.format(self.interface))
+				return findall('\d+\.\d+\.\d+\.\d+',popen('ifconfig {} 2>&1 | grep inet\ '.format(self.interface)).read())[0].rstrip('1234567890') + '1'
 			except IndexError:
 				info('=> Method 4: Guessing (ping -c 1 -W 1 -I {} 192.168.0.1/192.168.1.1/192.168.8.1)'.format(self.interface))
 				print('=> Method 4: Guessing (ping -c 1 -W 1 -I {} 192.168.0.1/192.168.1.1/192.168.2.1)'.format(self.interface))
@@ -423,13 +432,23 @@ if __name__ == '__main__':
 		pid	=	pf.read_pid()
 		if not pid:
 			if options.nodaemon and not options.daemon:
-				pf.acquire()
-				programm = mitmprotector()
-			elif options.daemon:
-				print('Starting daemon...')
-				with daemon.DaemonContext():
+				try:
 					pf.acquire()
 					programm = mitmprotector()
+				except lockfile.LockFailed, e:
+					print('=> {0}: Shutting down mitmprotector.'.format(e.message))
+					exit(1)
+			elif options.daemon:
+				print('Starting daemon...')
+				try:
+					pf.acquire()
+					pf.release()
+					with daemon.DaemonContext():
+						pf.acquire()
+						programm = mitmprotector()
+				except lockfile.LockFailed, e:
+					print('=> {0}: Shutting down mitmprotector.'.format(e.message))
+					exit(1)
 		else:
 			print('Already running: PID={}'.format(pid))
 
