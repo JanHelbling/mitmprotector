@@ -19,17 +19,23 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from os import popen,getuid,path,fork,execvp,wait,unlink,chmod,getpid,kill
-from sys import exit
-from time import sleep
-from logging import info,warning,critical,basicConfig,DEBUG
-from re import findall,compile
-from struct import pack
-from socket import inet_ntoa
-from uuid import getnode
-from signal import signal,SIGTERM
-from optparse import OptionParser
-import ConfigParser
+
+try:
+	from os import popen,getuid,path,fork,execvp,wait,unlink,chmod,getpid,kill
+	from sys import exit
+	from time import sleep
+	from logging import info,warning,critical,basicConfig,DEBUG
+	from re import findall,compile
+	from struct import pack
+	from socket import inet_ntoa
+	from uuid import getnode
+	from signal import signal,SIGTERM
+	from optparse import OptionParser
+	import ConfigParser
+except ImportError, e:
+	print(e.message)
+	exit(1)
+
 
 try:
 	import daemon,daemon.pidfile
@@ -164,13 +170,13 @@ class mitmprotector(object):
 		info('Creating a firewall with arptables and arp!')
 		print('creating a firewall with arptables and arp!')
 		print('Interface: {0}\nRouter-IP: {1}'.format(self.interface,self.routerip))
-		self.data			=	popen('arp-scan -I {0} {1} | grep {1}'.format(self.interface,self.routerip),'r').read()
+		self.data			=	popen('arp-scan -I {0} {1} 2>&1 | grep {1}'.format(self.interface,self.routerip),'r').read()
 		try:
 			self.mac		=	mac_regex.findall(self.data)[0]
 			print('Router-MAC: {}'.format(self.mac))
 		except IndexError:
 			sleep(2)
-			self.data		=	popen('arp-scan -I {0} {1} | grep {1}'.format(self.interface,self.routerip),'r').read()
+			self.data		=	popen('arp-scan -I {0} {1} 2>&1 | grep {1}'.format(self.interface,self.routerip),'r').read()
 			try:
 				self.mac		=	mac_regex.findall(self.data)[0]
 			except IndexError:
