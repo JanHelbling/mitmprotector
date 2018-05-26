@@ -131,9 +131,25 @@ class mitmprotector(object):
 			exit(1)
 		try:
 			self.exec_cmd		=	config.get('attack','exec')
+			if not '{0}' in self.exec_cmd or not '{1}' in self.exec_cmd:
+				critical('IP: {0} and MAC: {1} not in [attack]->exec')
+				critical('Shutting down mitmprotector.')
+				print('IP: {0} and MAC: {1} not in [attack]->exec')
+				print('Shutting down mitmprotector.')
+				if pf.is_locked():
+					pf.release()
+				exit(1)
 			self.interface		=	config.get('attack','interface')
 			self.putinterfacedown	=	bool(	config.get('attack','put-interface-down'))
 			self.shutdown_iface_cmd	=		config.get('attack','shutdown-interface-command')
+			if not '{0}' in self.shutdown_iface_cmd:
+				critical('Interface {0} not in [attack]->shutdown-interface-command5')
+				critical('Shutting down mitmprotector.')
+				print('Interface {0} not in [attack]->shutdown-interface-command')
+				print('Shutting down mitmprotector.')
+				if pf.is_locked():
+					pf.release()
+				exit(1)
 			self.scan_timeout	=	float(	config.get('arp-scanner','timeout'))
 			self.arp_command	=		config.get('arp-scanner','command')
 		except ConfigParser.NoSectionError, e:
