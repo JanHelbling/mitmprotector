@@ -29,7 +29,10 @@ Configuration-File: /etc/mitmprotector.conf (after first execution)
 Logfile: /var/log/mitmprotector.log
 Pidfile: /var/run/mitmprotector.pid
 
-Install:
+Install dependencies:
+ $ sudo apt install python-daemon arp-scan arptables
+
+Install mitmprotector.py:
  $ sudo ./setup.py install --prefix=/usr
 
 First execution (it will create /etc/mitmprotector.conf):

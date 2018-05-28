@@ -33,7 +33,7 @@ try:
 	from optparse import OptionParser
 	import ConfigParser
 except ImportError, e:
-	print(e.message)
+	print('ImportError: {0}'.format(e.message))
 	exit(1)
 
 
@@ -55,15 +55,15 @@ except ImportError:
 	print('Fedora:    sudo yum install python-lockfile')
 	exit(1)
 
-ip_regex 	= compile('\d+\.\d+\.\d+\.\d+')
-mac_regex	= compile('[A-Za-z0-9]+:[A-Za-z0-9]+:[A-Za-z0-9]+:[A-Za-z0-9]+:[A-Za-z0-9]+:[A-Za-z0-9]+')
+ip_regex 	= compile(r'\d+\.\d+\.\d+\.\d+')
+mac_regex	= compile(r'[A-Za-z0-9]+:[A-Za-z0-9]+:[A-Za-z0-9]+:[A-Za-z0-9]+:[A-Za-z0-9]+:[A-Za-z0-9]+')
 
 config_path	= '/etc/mitmprotector.conf'
 log_path	= '/var/log/mitmprotector.log'
 pid_file	= '/var/run/mitmprotector.pid'
 
 prog_name	= 'mitmprotector.py'
-version		= '28'
+version		= '29'
 
 pf		= daemon.pidfile.PIDLockFile(pid_file)
 
@@ -117,6 +117,9 @@ class mitmprotector(object):
 			print('==> First execution <==')
 			print('Created configurationfile {}!'.format(config_path))
 			print('You need to edit it before run {}!'.format(prog_name))
+			info('==> First execution <==')
+			info('Created configurationfile {}!'.format(config_path))
+			info('You need to edit it before run {}!'.format(prog_name))
 			if pf.is_locked():
 				pf.release()
 			exit(0)
@@ -184,6 +187,7 @@ class mitmprotector(object):
 			critical('Command "arptables" not found!!! Could not create a firewall!!!')
 			return
 		info('Creating a firewall with arptables and arp!')
+		info('Interface: {0}\nRouter-IP: {1}'.format(self.interface,self.routerip))
 		print('creating a firewall with arptables and arp!')
 		print('Interface: {0}\nRouter-IP: {1}'.format(self.interface,self.routerip))
 		self.data			=	popen('arp-scan -I {0} {1} 2>&1 | grep {1}'.format(self.interface,self.routerip),'r').read()
@@ -262,7 +266,7 @@ class mitmprotector(object):
 				print('>>> IP: {0}  MAC: {1}'.format(ip,mac))
 				self.devices.append((ip,mac))
 			except IndexError:
-				print('IndexError: Failed to regex a line from "arp -an" => IP & MAC')
+				print('IndexError: Failed to regex a line from "{0}" => IP & MAC'.format(self.arp_command))
 				print('The line: "{}".'.format(line.rstrip('\n')))
 		print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>  ARP-LIST END    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n\n')
 
