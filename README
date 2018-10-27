@@ -39,7 +39,7 @@ First execution (it will create /etc/mitmprotector.conf):
  $ sudo mitmprotector.py
 
 Run mitmprotector as a daemon (with pidfile /var/run/mitmprotector.pid => use SIGTERM to stop it):
- $ sudo mitm-protector.py --daemon
+ $ sudo mitmprotector.py --daemon
 
 Enable mitmprotector-scripts to Ubuntus networkmanager or WICD:
 (It will start/stop autmoated on every connect/disconnect)
