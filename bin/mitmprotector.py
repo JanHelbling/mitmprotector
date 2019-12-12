@@ -3,7 +3,7 @@
 #
 #    mitmprotector.py - protect's you from any kind of MITM-attacks.
 #
-#    Copyright (C) 2018 by Jan Helbling <jan.helbling@mailbox.org>
+#    Copyright (C) 2020 by Jan Helbling <jh@jan-helbling.ch>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
