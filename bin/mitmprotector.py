@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 #
 #    mitmprotector.py - protect's you from any kind of MITM-attacks.
@@ -31,9 +31,9 @@ try:
 	from uuid import getnode
 	from signal import signal,SIGTERM
 	from optparse import OptionParser
-	import ConfigParser
-except ImportError, e:
-	print('ImportError: {0}'.format(e.message))
+	import configparser
+except ImportError as e:
+	print('ImportError: {0}'.format(e.msg))
 	exit(1)
 
 
@@ -99,7 +99,7 @@ class mitmprotector(object):
 	
 	def __read_config__(self):
 		print('=> Loading configuration oddments =)')
-		config		=	ConfigParser.RawConfigParser()
+		config		=	configparser.RawConfigParser()
 		if not path.exists(config_path):
 			info('Creating new configfile: {}.'.format(config_path))
 			print('Creating new configfile: {}.'.format(config_path))
@@ -155,7 +155,7 @@ class mitmprotector(object):
 				exit(1)
 			self.scan_timeout	=	float(	config.get('arp-scanner','timeout'))
 			self.arp_command	=		config.get('arp-scanner','command')
-		except ConfigParser.NoSectionError, e:
+		except configparser.NoSectionError as e:
 			critical('Could not read config {}: {}.'.format(config_path,e))
 			critical('Shutting down mitmprotector.')
 			print('Could not read config {}: {}.'.format(config_path,e))
@@ -163,7 +163,7 @@ class mitmprotector(object):
 			if pf.is_locked():
 				pf.release()
 			exit(1)
-		except ConfigParser.NoOptionError, e:
+		except configparser.NoOptionError as e:
 			critical('Could not read config {}: {}.'.format(config_path,e.message))
 			critical('Shutting down mitmprotector.')
 			print('Could not read config {}: {}.'.format(config_path,e.message))
@@ -171,7 +171,7 @@ class mitmprotector(object):
 			if pf.is_locked():
 	                        pf.release()
 			exit(1)
-		except ValueError, e:
+		except ValueError as e:
 			critical('Could not read floatvalue [arp-scanner]->timeout: {}'.format(e.message))
 			critical('Shutting down mitmprotector.')
 			print('Could not read floatvalue [arp-scanner]->timeout: {}'.format(e.message))
@@ -296,7 +296,7 @@ class mitmprotector(object):
 				info('Trying 3 alternate methods to get the RouterIP.')
 				print('Error: Couldn\'t get ip from "/proc/net/route"')
 				print('Trying 3 alternate methods to get the RouterIP.')
-			except OSError, e:
+			except OSError as e:
 				critical('Error: Couldn\'t open "/proc/net/route": {}.'.format(e.strerror))
 				info('Trying 3 alternate methods to get the RouterIP.')
 				print('Error: Couldn\'t open "/proc/net/route": {}.'.format(e.strerror))
@@ -339,7 +339,7 @@ class script_manager(object):
 			try:
 				unlink('/etc/network/if-post-down.d/mitmprotector')
 				unlink('/etc/network/if-up.d/mitmprotector')
-			except OSError, e:
+			except OSError as e:
 				print('Error: Couldn\'t remove {}: {}.'.format(e.filename,e.strerror))
 				exit(1)
 		if path.exists('/etc/wicd/scripts/predisconnect/mitmprotector') and path.exists('/etc/wicd/scripts/postconnect/mitmprotector'):
@@ -347,7 +347,7 @@ class script_manager(object):
 			try:
 				unlink('/etc/wicd/scripts/predisconnect/mitmprotector')
 				unlink('/etc/wicd/scripts/postconnect/mitmprotector')
-			except OSError, e:
+			except OSError as e:
 				print('Error: Couldn\'t remove {}: {}.'.format(e.filename,e.strerror))
 				exit(1)
 		print('[+++] Done! Scripts removed!')
@@ -366,13 +366,13 @@ class script_manager(object):
 					mitmprotector_up.write('#!/bin/bash\n{} -d'.format(prog_name))
 					mitmprotector_down.close()
 					mitmprotector_up.close()
-				except OSError, e:
+				except OSError as e:
 					print('[NetworkManager] Failed to create {}: {}.'.format(e.filename,e.strerror))
 					exit(1)
 				try:
-					chmod('/etc/network/if-post-down.d/mitmprotector',0755)
-					chmod('/etc/network/if-up.d/mitmprotector',0755)
-				except OSError, e:
+					chmod('/etc/network/if-post-down.d/mitmprotector',755)
+					chmod('/etc/network/if-up.d/mitmprotector',755)
+				except OSError as e:
 					print('[NetworkManager] Failed to chmod->755 {}: {}.'.format(e.filename,e.strerror))
 					print('    You must manual chmod 755 these files:')
 					print('    /etc/network/if-post-down.d/mitmprotector')
@@ -395,13 +395,13 @@ class script_manager(object):
 					mitmprotector_up.write('#!/bin/bash\n{} -d'.format(prog_name))
 					mitmprotector_down.close()
 					mitmprotector_up.close()
-				except OSError, e:
+				except OSError as e:
 					print('[WICD] Failed to create {}: {}.'.format(e.filename,e.strerror))
 					exit(1)
 				try:
-					chmod('/etc/wicd/scripts/predisconnect/mitmprotector',0755)
-					chmod('/etc/wicd/scripts/postconnect/mitmprotector',0755)
-				except OSError, e:
+					chmod('/etc/wicd/scripts/predisconnect/mitmprotector',755)
+					chmod('/etc/wicd/scripts/postconnect/mitmprotector',755)
+				except OSError as e:
 					print('[WICD] Failed to chmod->755 {}: {}.'.format(e.filename,e.strerror))
 					print('    You must manual chmod 755 these files:')
 					print('    /etc/wicd/scripts/predisconnect/mitmprotector')
@@ -461,7 +461,7 @@ if __name__ == '__main__':
 				try:
 					pf.acquire()
 					programm = mitmprotector()
-				except lockfile.LockFailed, e:
+				except lockfile.LockFailed as e:
 					print('=> {0}: Shutting down mitmprotector.'.format(e.message))
 					exit(1)
 			elif options.daemon:
@@ -472,7 +472,7 @@ if __name__ == '__main__':
 					with daemon.DaemonContext():
 						pf.acquire()
 						programm = mitmprotector()
-				except lockfile.LockFailed, e:
+				except lockfile.LockFailed as e:
 					print('=> {0}: Shutting down mitmprotector.'.format(e.message))
 					exit(1)
 		else:

@@ -30,7 +30,7 @@ Logfile: /var/log/mitmprotector.log
 Pidfile: /var/run/mitmprotector.pid
 
 Install dependencies:
- $ sudo apt install python-daemon arp-scan arptables
+ $ sudo apt install python3-daemon arp-scan arptables
 
 Install mitmprotector.py:
  $ sudo ./setup.py install --prefix=/usr
