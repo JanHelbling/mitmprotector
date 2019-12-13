@@ -433,11 +433,11 @@ if __name__ == '__main__':
 		options.daemon		=	False
 		options.nodaemon	=	True
 	
-	if popen('arp-scan --help 2>&1 | grep 0x0800').read() == '':
-		print('You must install arp-scan to use this programm!')
-		print('Ubuntu:    sudo apt-get install arp-scan')
-		print('ArchLinux: sudo pacman -S arp-scan')
-		print('Fedora:    sudo yum install arp-scan')
+	if popen('arping --help 2>&1 | grep Dev').read() == '':
+		print('You must install arping to use this programm!')
+		print('Ubuntu:    sudo apt-get install arping')
+		print('ArchLinux: sudo pacman -S arping')
+		print('Fedora:    sudo yum install arping')
 		exit(1)
 	if options.kill:
 		pid	=	pf.read_pid()
