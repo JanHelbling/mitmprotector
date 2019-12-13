@@ -190,13 +190,13 @@ class mitmprotector(object):
 		info('Interface: {0}\nRouter-IP: {1}'.format(self.interface,self.routerip))
 		print('creating a firewall with arptables and arp!')
 		print('Interface: {0}\nRouter-IP: {1}'.format(self.interface,self.routerip))
-		self.data			=	popen('arp-scan -I {0} {1} 2>&1 | grep {1}'.format(self.interface,self.routerip),'r').read()
+		self.data			=	popen('arping -c 1 -i {0} {1} 2>&1 | grep {1}'.format(self.interface,self.routerip),'r').read()
 		try:
 			self.mac		=	mac_regex.findall(self.data)[0]
 			print('Router-MAC: {}'.format(self.mac))
 		except IndexError:
 			sleep(2)
-			self.data		=	popen('arp-scan -I {0} {1} 2>&1 | grep {1}'.format(self.interface,self.routerip),'r').read()
+			self.data		=	popen('arping -c 1 -i {0} {1} 2>&1 | grep {1}'.format(self.interface,self.routerip),'r').read()
 			try:
 				self.mac		=	mac_regex.findall(self.data)[0]
 			except IndexError:
