@@ -40,19 +40,19 @@ except ImportError as e:
 try:
 	import daemon,daemon.pidfile
 except ImportError:
-	print('You must install python2-daemon to run this programm!')
-	print('Ubuntu:    sudo apt-get install python-daemon')
-	print('ArchLinux: sudo pacman -S python2-daemon')
-	print('Fedora:    sudo yum install python-daemon')
+	print('You must install python3-daemon to run this programm!')
+	print('Ubuntu:    sudo apt-get install python3-daemon')
+	print('ArchLinux: sudo pacman -S python-daemon')
+	print('Fedora:    sudo dnf install python3-daemon')
 	exit(1)
 
 try:
 	import lockfile
 except ImportError:
-	print('You must install python2-lockfile to run this programm!')
-	print('Ubuntu:    sudo apt-get install python-lockfile')
-	print('ArchLinux: sudo pacman -S python2-lockfile')
-	print('Fedora:    sudo yum install python-lockfile')
+	print('You must install python3-lockfile to run this programm!')
+	print('Ubuntu:    sudo apt-get install python3-lockfile')
+	print('ArchLinux: sudo pacman -S python-lockfile')
+	print('Fedora:    sudo dnf install python3-lockfile')
 	exit(1)
 
 ip_regex 	= compile(r'\d+\.\d+\.\d+\.\d+')
@@ -437,7 +437,7 @@ if __name__ == '__main__':
 		print('You must install arping to use this programm!')
 		print('Ubuntu:    sudo apt-get install arping')
 		print('ArchLinux: sudo pacman -S arping')
-		print('Fedora:    sudo yum install arping')
+		print('Fedora:    sudo dnf install arping')
 		exit(1)
 	if options.kill:
 		pid	=	pf.read_pid()
