@@ -433,6 +433,13 @@ if __name__ == '__main__':
 		options.daemon		=	False
 		options.nodaemon	=	True
 	
+	if popen('arp --help 2>&1 | grep "use-device"').read() == '':
+		print('You must install net-tools to use this programm!')
+		print('Ubuntu:    sudo apt-get install net-tools')
+		print('ArchLinux: sudo pacman -S net-tools')
+		print('Fedora:    sudo dnf install net-tools')
+		exit(1)
+	
 	if popen('arping --help 2>&1 | grep Dev').read() == '':
 		print('You must install arping to use this programm!')
 		print('Ubuntu:    sudo apt-get install arping')
