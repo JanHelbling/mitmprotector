@@ -10,6 +10,6 @@ setup(name='mitmprotector',
       author='Jan Helbling',
       author_email='jh@jan-helbling.ch',
       url='https://github.com/JanHelbling/mitmprotector',
-      platforms=['linux','freebsd','netbsd','unixware7' , 'openbsd'],
+      platforms=['linux'],
       scripts=['bin/mitmprotector.py'],
 )
